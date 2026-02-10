@@ -9,17 +9,17 @@
 1. [Visión General](#1-visión-general)
 2. [Stack Tecnológico](#2-stack-tecnológico)
 3. [Arquitectura de Alto Nivel](#3-arquitectura-de-alto-nivel)
-4. [Patrón Multi-Tenant](#4-patrón-multi-tenant)
-5. [Microservicios del Sistema](#5-microservicios-del-sistema)
-6. [Arquitectura Hexagonal + DDD](#6-arquitectura-hexagonal--ddd)
-7. [API Gateway con Spring Cloud Gateway](#7-api-gateway-con-spring-cloud-gateway)
-8. [Service Discovery con Eureka](#8-service-discovery-con-eureka)
+4. [Comunicación entre Microservicios](#4-comunicación-entre-microservicios)
+5. [Patrón Multi-Tenant](#5-patrón-multi-tenant)
+6. [Microservicios del Sistema](#6-microservicios-del-sistema)
+7. [Arquitectura Hexagonal + DDD](#7-arquitectura-hexagonal--ddd)
+8. [API Gateway](#8-api-gateway)
 9. [Seguridad con Keycloak](#9-seguridad-con-keycloak)
-10. [Event-Driven Architecture](#10-event-Driven-Architecture-con-RabbitMQ)
-11. [Estructura de Carpetas Estandarizada](#11-estructura-de-carpetas-estandarizada)
-12. [Configuración Centralizada](#12-configuración-centralizada)
-13. [Observabilidad](#13-observabilidad)
-14. [Despliegue](#14-despliegue)
+10. [Mensajería con RabbitMQ](#10-mensajería-con-rabbitmq)
+11. [Microservicio de Notificaciones](#11-microservicio-de-notificaciones)
+12. [Estructura de Carpetas Estandarizada](#12-estructura-de-carpetas-estandarizada)
+13. [Configuración por Variables de Entorno](#13-configuración-por-variables-de-entorno)
+14. [Despliegue con Docker Compose](#14-despliegue-con-docker-compose)
 
 ---
 
@@ -33,20 +33,19 @@
 
 | Objetivo | Descripción |
 |----------|-------------|
-| **Escalabilidad** | Escalar horizontalmente según demanda |
+| **Simplicidad** | Fácil de entender y mantener por el equipo |
 | **Multi-Tenancy** | Aislamiento completo entre instituciones |
 | **Mantenibilidad** | Código limpio, modular y testeable |
-| **Resiliencia** | Tolerancia a fallos, circuit breakers |
-| **Seguridad** | Autenticación/Autorización centralizada |
-| **Observabilidad** | Logs, métricas y trazabilidad distribuida |
+| **Escalabilidad** | Preparado para crecer cuando sea necesario |
+| **Seguridad** | Autenticación/Autorización centralizada con Keycloak |
 
 ### 1.3 Principios de Diseño
 
 - **Domain-Driven Design (DDD)**: Modelado basado en el dominio del negocio
 - **Arquitectura Hexagonal**: Separación clara entre dominio e infraestructura
-- **Event-Driven**: Comunicación asíncrona entre microservicios
+- **Comunicación Híbrida**: REST síncrono + RabbitMQ asíncrono
 - **API-First**: Contratos de API documentados con OpenAPI
-- **12-Factor App**: Mejores prácticas para aplicaciones cloud-native
+- **Configuración Simple**: Variables de entorno en Docker Compose
 
 ---
 
@@ -58,36 +57,30 @@
 |------------|---------|-----------|
 | **Java** | 17 LTS | Lenguaje base |
 | **Spring Boot** | 3.5.10 | Framework principal |
-| **Spring Cloud** | 2024.0.x | Microservicios |
 | **Spring WebFlux** | 3.5.10 | Programación reactiva |
-| **Spring Data R2DBC** | 3.5.10 | Acceso reactivo a BD |
-| **Spring Security** | 6.x | Seguridad |
+| **Spring Data R2DBC** | 3.5.10 | Acceso reactivo a PostgreSQL |
+| **Spring Data MongoDB** | 3.5.10 | Acceso reactivo a MongoDB |
+| **Spring Security** | 6.x | Seguridad OAuth2/JWT |
 | **Keycloak** | 24.x | Identity Provider |
-| **PostgreSQL** | 16.x | Base de datos principal |
-| **MongoDB** | 7.x | Datos no estructurados |
-| **RabbitMQ** | 3.13.x | Mensajería (más simple que Kafka) |
-| **Redis** | 7.x | Caché distribuido |
+| **PostgreSQL** | 16.x | Base de datos relacional |
+| **MongoDB** | 7.x | Base de datos documental |
+| **RabbitMQ** | 3.13.x | Mensajería asíncrona |
 | **Docker** | 25.x | Containerización |
 | **Docker Compose** | 2.x | Orquestación en VPC |
 
-### 2.2 ¿Por qué RabbitMQ y no Kafka?
+### 2.2 ¿Por qué esta selección?
 
-| Característica | RabbitMQ | Apache Kafka |
-|----------------|----------|--------------|
-| **Curva de aprendizaje** | ✅ Baja - Fácil para el equipo | ❌ Alta - Requiere expertise |
-| **Configuración** | ✅ Simple - Menos componentes | ❌ Compleja - ZooKeeper/KRaft |
-| **Recursos** | ✅ Menos RAM/CPU requerido | ❌ Requiere más recursos |
-| **Caso de uso** | ✅ Colas de tareas, notificaciones | ⚠️ Event streaming masivo |
-| **Debugging** | ✅ UI Admin incluida | ⚠️ Requiere Kafka UI adicional |
-| **Dead Letter Queue** | ✅ Nativo y simple | ⚠️ Configuración manual |
-| **Ideal para** | ✅ Equipos pequeños/medianos | ⚠️ Empresas grandes |
+| Decisión | Justificación |
+|----------|---------------|
+| **Sin Redis** | Keycloak maneja sesiones. Caché se puede agregar después si hay problemas de rendimiento |
+| **Sin Eureka** | Docker Compose permite comunicación por nombre de contenedor directamente |
+| **Sin Config Server** | Variables de entorno en Docker Compose son más simples y suficientes |
+| **RabbitMQ vs Kafka** | RabbitMQ es más simple, menos curva de aprendizaje, ideal para equipos pequeños |
+| **Gateway sí** | Único punto de entrada para el frontend, centraliza seguridad |
 
-**Decisión: RabbitMQ** - Mejor para un equipo en desarrollo, más fácil de mantener y debuggear.
-
-### 2.2 Dependencias Maven Estándar
+### 2.3 Dependencias Maven Estándar
 
 ```xml
-<!-- Parent POM estandarizado -->
 <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
@@ -96,137 +89,268 @@
 
 <properties>
     <java.version>17</java.version>
-    <spring-cloud.version>2024.0.0</spring-cloud.version>
     <springdoc.version>2.8.8</springdoc.version>
     <mapstruct.version>1.6.3</mapstruct.version>
-    <testcontainers.version>1.19.8</testcontainers.version>
 </properties>
 
-<dependencyManagement>
-    <dependencies>
-        <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-dependencies</artifactId>
-            <version>${spring-cloud.version}</version>
-            <type>pom</type>
-            <scope>import</scope>
-        </dependency>
-    </dependencies>
-</dependencyManagement>
+<dependencies>
+    <!-- WebFlux (Reactivo) -->
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-webflux</artifactId>
+    </dependency>
+
+    <!-- Seguridad OAuth2 -->
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+    </dependency>
+
+    <!-- RabbitMQ -->
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-amqp</artifactId>
+    </dependency>
+
+    <!-- OpenAPI/Swagger -->
+    <dependency>
+        <groupId>org.springdoc</groupId>
+        <artifactId>springdoc-openapi-starter-webflux-ui</artifactId>
+        <version>${springdoc.version}</version>
+    </dependency>
+
+    <!-- Lombok -->
+    <dependency>
+        <groupId>org.projectlombok</groupId>
+        <artifactId>lombok</artifactId>
+        <optional>true</optional>
+    </dependency>
+</dependencies>
 ```
 
 ---
 
 ## 3. Arquitectura de Alto Nivel
 
-### 3.1 Diagrama de Arquitectura
+### 3.1 Diagrama de Arquitectura Simplificada
 
 ```
                                     ┌─────────────────────────────────────────────────────────────┐
                                     │                        FRONTEND                             │
-                                    │                    React 19 + TypeScript                    │
-                                    │                     vg-web-sigei                            │
+                                    │              React 19 + TypeScript + Vite                   │
+                                    │                     sigei-web                               │
+                                    │                    Puerto: 3000                             │
                                     └─────────────────────────┬───────────────────────────────────┘
                                                               │
                                                               ▼
                                     ┌─────────────────────────────────────────────────────────────┐
                                     │                     API GATEWAY                             │
                                     │               Spring Cloud Gateway                          │
-                                    │         (Autenticación, Rate Limiting, Routing)            │
+                                    │       (Routing, Seguridad JWT, CORS, Rate Limit)           │
                                     │                    Puerto: 8080                             │
                                     └─────────────────────────┬───────────────────────────────────┘
                                                               │
-                         ┌────────────────────────────────────┼────────────────────────────────────┐
-                         │                                    │                                    │
-                         ▼                                    ▼                                    ▼
-          ┌──────────────────────────┐      ┌──────────────────────────┐      ┌──────────────────────────┐
-          │      KEYCLOAK            │      │    SERVICE DISCOVERY     │      │    CONFIG SERVER         │
-          │   Identity Provider      │      │    Eureka Server         │      │  Spring Cloud Config     │
-          │   Puerto: 8180           │      │    Puerto: 8761          │      │    Puerto: 8888          │
-          └──────────────────────────┘      └──────────────────────────┘      └──────────────────────────┘
+                         ┌────────────────────────────────────┴────────────────────────────────────┐
+                         │                                                                         │
+                         ▼                                                                         ▼
+          ┌──────────────────────────┐                                          ┌──────────────────────────┐
+          │      KEYCLOAK            │                                          │    NGINX (Producción)   │
+          │   Identity Provider      │                                          │    Reverse Proxy        │
+          │   Puerto: 8180           │                                          │    Puerto: 80/443       │
+          └──────────────────────────┘                                          └──────────────────────────┘
                                                               │
                                                               ▼
 ┌─────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │                                        MICROSERVICIOS DE NEGOCIO                                            │
+│                           (Comunicación REST directa por nombre de contenedor Docker)                       │
 │                                                                                                             │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐   │
 │  │  ms-institution │  │   ms-users      │  │  ms-students    │  │  ms-academic    │  │ ms-enrollments  │   │
 │  │    :9080        │  │    :9081        │  │    :9082        │  │    :9083        │  │    :9084        │   │
-│  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘   │
-│           │                    │                    │                    │                    │            │
+│  │    MongoDB      │  │    MongoDB      │  │    MongoDB      │  │   PostgreSQL    │  │   PostgreSQL    │   │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘  └─────────────────┘  └─────────────────┘   │
+│                                                                                                             │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐   │
 │  │  ms-attendance  │  │    ms-grades    │  │  ms-behavior    │  │  ms-psychology  │  │   ms-events     │   │
 │  │    :9085        │  │    :9086        │  │    :9087        │  │    :9088        │  │    :9089        │   │
-│  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘   │
-│           │                    │                    │                    │                    │            │
+│  │   PostgreSQL    │  │   PostgreSQL    │  │   PostgreSQL    │  │   PostgreSQL    │  │   PostgreSQL    │   │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘  └─────────────────┘  └─────────────────┘   │
+│                                                                                                             │
 │  ┌─────────────────┐  ┌─────────────────┐                                                                  │
-│  │ ms-teacher-     │  │ ms-notification │                                                                  │
-│  │  assignment     │  │    :9091        │                                                                  │
-│  │    :9090        │  └────────┬────────┘                                                                  │
-│  └────────┬────────┘           │                                                                           │
-└───────────┼────────────────────┼───────────────────────────────────────────────────────────────────────────┘
-            │                    │
-            ▼                    ▼
+│  │ ms-teacher-     │  │ ms-notification │◀──────── Consume mensajes de RabbitMQ                           │
+│  │  assignment     │  │    :9091        │          (Envía emails, push, SMS, WhatsApp a padres)           │
+│  │    :9090        │  │    MongoDB      │                                                                  │
+│  │   PostgreSQL    │  └─────────────────┘                                                                  │
+│  └─────────────────┘                                                                                        │
+└───────────────────────────────────────────────────────────────────────────────────┬─────────────────────────┘
+                                                                                    │
+                                                                                    ▼
 ┌─────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                              MESSAGE BROKER                                                 │
-│                                             RabbitMQ 3.13                                                   │
+│                                             RABBITMQ                                                        │
+│                                   (Solo para eventos asíncronos)                                            │
+│                                  Puerto: 5672 (AMQP) / 15672 (UI)                                          │
 │                                                                                                             │
-│   Exchanges: institution | student | attendance | notification | document                                   │
+│   Exchanges: attendance.events | document.events | notification.commands                                    │
+│   Casos de uso: Notificar ausencia → Enviar a padres | Compartir documento → Enviar a padres              │
 └─────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-            │
-            ▼
+                                                              │
+                                                              ▼
 ┌─────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                           DATA LAYER                                                        │
+│                                           BASES DE DATOS                                                    │
 │                                                                                                             │
-│  ┌─────────────────────────┐  ┌─────────────────────────┐  ┌─────────────────────────┐                     │
-│  │     PostgreSQL          │  │       MongoDB           │  │        Redis            │                     │
-│  │  (Datos relacionales)   │  │   (Datos documentales)  │  │   (Cache, Sessions)     │                     │
-│  │                         │  │                         │  │                         │                     │
-│  │ • Enrollments           │  │ • Institutions          │  │ • Token cache           │                     │
-│  │ • Attendance            │  │ • Users                 │  │ • Session storage       │                     │
-│  │ • Grades                │  │ • Students              │  │ • Rate limiting         │                     │
-│  │ • Academic catalog      │  │ • Notifications         │  │                         │                     │
-│  │ • Events                │  │                         │  │                         │                     │
-│  │ • Teacher assignments   │  │                         │  │                         │                     │
-│  │ • Psychology            │  │                         │  │                         │                     │
-│  │ • Behavior              │  │                         │  │                         │                     │
-│  └─────────────────────────┘  └─────────────────────────┘  └─────────────────────────┘                     │
+│  ┌─────────────────────────────────────────┐  ┌─────────────────────────────────────────┐                  │
+│  │           PostgreSQL :5432              │  │            MongoDB :27017               │                  │
+│  │                                         │  │                                         │                  │
+│  │ • ms-academic (cursos, competencias)    │  │ • ms-institution (instituciones, aulas) │                  │
+│  │ • ms-enrollments (matrículas)           │  │ • ms-users (usuarios)                   │                  │
+│  │ • ms-attendance (asistencias)           │  │ • ms-students (estudiantes, apoderados) │                  │
+│  │ • ms-grades (notas, evaluaciones)       │  │ • ms-notification (logs, plantillas)    │                  │
+│  │ • ms-behavior (comportamiento)          │  │                                         │                  │
+│  │ • ms-psychology (bienestar)             │  │                                         │                  │
+│  │ • ms-events (eventos, calendario)       │  │                                         │                  │
+│  │ • ms-teacher-assignment (asignaciones)  │  │                                         │                  │
+│  └─────────────────────────────────────────┘  └─────────────────────────────────────────┘                  │
 └─────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 3.2 Flujo de Comunicación
+### 3.2 Resumen de Puertos
+
+| Servicio | Puerto | Descripción |
+|----------|--------|-------------|
+| **Nginx** | 80/443 | Proxy reverso (producción) |
+| **Gateway** | 8080 | API Gateway |
+| **Keycloak** | 8180 | Identity Provider |
+| **RabbitMQ** | 5672 | AMQP |
+| **RabbitMQ UI** | 15672 | Administración |
+| **PostgreSQL** | 5432 | Base de datos relacional |
+| **MongoDB** | 27017 | Base de datos documental |
+| **Frontend** | 3000 | React App |
+| **Microservicios** | 9080-9091 | APIs de negocio |
+
+---
+
+## 4. Comunicación entre Microservicios
+
+### 4.1 Modelo Híbrido: REST + RabbitMQ
 
 ```
-┌──────────┐     ┌─────────┐     ┌─────────────┐     ┌──────────────┐     ┌─────────────┐
-│  Client  │────▶│ Gateway │────▶│   Keycloak  │────▶│ Microservice │────▶│  Database   │
-└──────────┘     └─────────┘     └─────────────┘     └──────────────┘     └─────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                          COMUNICACIÓN HÍBRIDA                                            │
+├─────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────────────────────┐   │
+│  │                      SÍNCRONA (REST / WebClient)                                 │   │
+│  │                                                                                  │   │
+│  │  Usar cuando:                                                                    │   │
+│  │  ✅ Necesitas respuesta INMEDIATA                                               │   │
+│  │  ✅ Operaciones CRUD normales                                                   │   │
+│  │  ✅ Consultas de datos                                                          │   │
+│  │  ✅ Validaciones que requieren datos de otro servicio                           │   │
+│  │                                                                                  │   │
+│  │  Ejemplos:                                                                       │   │
+│  │  • Gateway → ms-students: "Dame datos del estudiante X"                         │   │
+│  │  • ms-enrollment → ms-students: "¿Existe este estudiante?"                      │   │
+│  │  • ms-attendance → ms-students: "Obtener lista de estudiantes del aula"         │   │
+│  └─────────────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────────────────────┐   │
+│  │                      ASÍNCRONA (RabbitMQ)                                        │   │
+│  │                                                                                  │   │
+│  │  Usar cuando:                                                                    │   │
+│  │  ✅ NO necesitas esperar respuesta                                              │   │
+│  │  ✅ Tareas que pueden ejecutarse en background                                  │   │
+│  │  ✅ Notificaciones a usuarios/padres                                            │   │
+│  │  ✅ Generación de reportes                                                      │   │
+│  │  ✅ Envío de emails, SMS, push notifications                                    │   │
+│  │                                                                                  │   │
+│  │  Ejemplos:                                                                       │   │
+│  │  • ms-attendance → RabbitMQ → ms-notification: "Estudiante ausente, avisar"     │   │
+│  │  • ms-grades → RabbitMQ → ms-notification: "Libreta lista, enviar a padre"      │   │
+│  │  • ms-behavior → RabbitMQ → ms-notification: "Incidente registrado, notificar"  │   │
+│  └─────────────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                         │
+└─────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 4.2 Comunicación REST entre Microservicios (Docker)
+
+En Docker Compose, los contenedores se comunican por **nombre de servicio**:
+
+```java
+@Configuration
+public class WebClientConfig {
+
+    @Bean
+    public WebClient studentsWebClient() {
+        return WebClient.builder()
+            // En Docker Compose usamos el nombre del contenedor
+            .baseUrl("http://ms-students:9082")
+            .build();
+    }
+
+    @Bean
+    public WebClient institutionWebClient() {
+        return WebClient.builder()
+            .baseUrl("http://ms-institution:9080")
+            .build();
+    }
+}
+
+// Uso en un servicio
+@Service
+@RequiredArgsConstructor
+public class EnrollmentService {
+
+    private final WebClient studentsWebClient;
+
+    public Mono<StudentResponse> getStudent(String studentId) {
+        return studentsWebClient
+            .get()
+            .uri("/api/v1/students/{id}", studentId)
+            .retrieve()
+            .bodyToMono(StudentResponse.class);
+    }
+}
+```
+
+### 4.3 Flujo de Comunicación Típico
+
+```
+┌──────────┐     ┌─────────┐     ┌──────────────┐     ┌─────────────┐     ┌─────────────┐
+│  Cliente │     │ Gateway │     │ Microservice │     │  Database   │     │  RabbitMQ   │
+└────┬─────┘     └────┬────┘     └──────┬───────┘     └──────┬──────┘     └──────┬──────┘
      │                │                 │                    │                   │
-     │   1. Request   │                 │                    │                   │
+     │ 1. Request     │                 │                    │                   │
      │───────────────▶│                 │                    │                   │
-     │                │  2. Validate    │                    │                   │
-     │                │     Token       │                    │                   │
-     │                │────────────────▶│                    │                   │
-     │                │  3. Token Info  │                    │                   │
-     │                │◀────────────────│                    │                   │
-     │                │  4. Route +     │                    │                   │
-     │                │     TenantId    │                    │                   │
-     │                │─────────────────────────────────────▶│                   │
-     │                │                 │                    │  5. Query with   │
-     │                │                 │                    │     TenantId     │
-     │                │                 │                    │──────────────────▶│
-     │                │                 │                    │  6. Response     │
-     │                │                 │                    │◀──────────────────│
-     │  7. Response   │                 │                    │                   │
-     │◀───────────────│◀────────────────────────────────────│                   │
+     │                │                 │                    │                   │
+     │                │ 2. Validate JWT │                    │                   │
+     │                │ (Keycloak)      │                    │                   │
+     │                │─────────────────│                    │                   │
+     │                │                 │                    │                   │
+     │                │ 3. Forward      │                    │                   │
+     │                │───────────────▶ │                    │                   │
+     │                │                 │                    │                   │
+     │                │                 │ 4. Query DB        │                   │
+     │                │                 │───────────────────▶│                   │
+     │                │                 │                    │                   │
+     │                │                 │ 5. Response        │                   │
+     │                │                 │◀───────────────────│                   │
+     │                │                 │                    │                   │
+     │                │                 │ 6. Publish Event   │                   │
+     │                │                 │    (si aplica)     │                   │
+     │                │                 │────────────────────────────────────────▶
+     │                │                 │                    │                   │
+     │ 7. Response    │                 │                    │                   │
+     │◀───────────────│◀────────────────│                    │                   │
 ```
 
 ---
 
-## 4. Patrón Multi-Tenant
+## 5. Patrón Multi-Tenant
 
-### 4.1 Estrategia de Multi-Tenancy
+### 5.1 Estrategia: Discriminator Column
 
-Utilizaremos **Discriminator Column** (columna `tenant_id`) en todas las tablas:
+Utilizamos una columna `tenant_id` en todas las tablas para aislar datos por institución:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -235,7 +359,7 @@ Utilizaremos **Discriminator Column** (columna `tenant_id`) en todas las tablas:
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  ┌─────────────────────────────────────────────────────────┐   │
-│  │                    PostgreSQL                            │   │
+│  │                    Base de Datos                         │   │
 │  │                                                          │   │
 │  │  ┌─────────────────────────────────────────────────┐    │   │
 │  │  │              students                            │    │   │
@@ -248,117 +372,98 @@ Utilizaremos **Discriminator Column** (columna `tenant_id`) en todas las tablas:
 │  │  │ 4  | inst_002  | Ana        | Torres    | ...   │    │   │
 │  │  └─────────────────────────────────────────────────┘    │   │
 │  │                                                          │   │
-│  │  Cada query incluye automáticamente:                     │   │
-│  │  WHERE tenant_id = :currentTenant                        │   │
+│  │  ⚠️ Cada query incluye automáticamente:                 │   │
+│  │     WHERE tenant_id = :currentTenant                     │   │
 │  │                                                          │   │
 │  └──────────────────────────────────────────────────────────┘   │
 │                                                                 │
 │  Ventajas:                                                      │
-│  ✅ Menor costo de infraestructura                              │
+│  ✅ Menor costo de infraestructura (una sola BD)               │
 │  ✅ Fácil mantenimiento                                         │
 │  ✅ Adecuado para colegios pequeños/medianos                    │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 4.2 Implementación del Tenant Context
+### 5.2 Extracción del Tenant desde JWT
+
+El `tenant_id` se extrae del token JWT (claim `institution_id` de Keycloak):
 
 ```java
-// TenantContext.java - ThreadLocal para el tenant actual
-public class TenantContext {
+// TenantExtractor.java
+@Component
+public class TenantExtractor {
 
-    private static final ThreadLocal<String> CURRENT_TENANT = new ThreadLocal<>();
-
-    public static void setTenantId(String tenantId) {
-        CURRENT_TENANT.set(tenantId);
-    }
-
-    public static String getTenantId() {
-        return CURRENT_TENANT.get();
-    }
-
-    public static void clear() {
-        CURRENT_TENANT.remove();
+    public Mono<String> extractTenantId(ServerWebExchange exchange) {
+        return ReactiveSecurityContextHolder.getContext()
+            .map(ctx -> ctx.getAuthentication())
+            .filter(auth -> auth instanceof JwtAuthenticationToken)
+            .cast(JwtAuthenticationToken.class)
+            .map(jwt -> jwt.getToken().getClaimAsString("institution_id"))
+            .switchIfEmpty(Mono.error(new UnauthorizedException("No tenant found")));
     }
 }
 
-// Para WebFlux (reactivo) usamos Context
-public class ReactiveTenantContext {
+// TenantContext.java - Para WebFlux
+public class TenantContext {
+    public static final String TENANT_KEY = "tenantId";
 
-    public static final String TENANT_ID_KEY = "tenantId";
+    public static Function<Context, Context> withTenant(String tenantId) {
+        return ctx -> ctx.put(TENANT_KEY, tenantId);
+    }
 
     public static Mono<String> getTenantId() {
         return Mono.deferContextual(ctx ->
-            Mono.just(ctx.getOrDefault(TENANT_ID_KEY, ""))
+            Mono.just(ctx.getOrDefault(TENANT_KEY, ""))
         );
     }
-
-    public static Function<Context, Context> withTenant(String tenantId) {
-        return ctx -> ctx.put(TENANT_ID_KEY, tenantId);
-    }
 }
 ```
 
-### 4.3 Filtro de Tenant en Gateway
+### 5.3 Modelo base con Tenant
 
 ```java
-@Component
-public class TenantExtractionFilter implements GlobalFilter, Ordered {
-
-    @Override
-    public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        // Extraer tenant del token JWT (claim "institution_id")
-        return ReactiveSecurityContextHolder.getContext()
-            .map(ctx -> ctx.getAuthentication())
-            .cast(JwtAuthenticationToken.class)
-            .map(jwt -> jwt.getToken().getClaimAsString("institution_id"))
-            .flatMap(tenantId -> {
-                // Agregar header X-Tenant-ID para downstream services
-                ServerHttpRequest request = exchange.getRequest()
-                    .mutate()
-                    .header("X-Tenant-ID", tenantId)
-                    .build();
-                return chain.filter(exchange.mutate().request(request).build());
-            });
-    }
-
-    @Override
-    public int getOrder() {
-        return -1; // Ejecutar después de autenticación
-    }
-}
-```
-
-### 4.4 Modelo de Datos con Tenant
-
-```java
-// Clase base para todas las entidades con tenant
-@MappedSuperclass
+// Para R2DBC (PostgreSQL)
 public abstract class TenantAwareEntity {
 
-    @Column(name = "tenant_id", nullable = false, updatable = false)
+    @Column("tenant_id")
     private String tenantId;
 
-    @PrePersist
-    public void prePersist() {
-        if (this.tenantId == null) {
-            this.tenantId = TenantContext.getTenantId();
-        }
-    }
+    // getter, setter
 }
 
 // Ejemplo de entidad
-@Table("students")
-public class Student extends TenantAwareEntity {
+@Table("attendance")
+public class Attendance extends TenantAwareEntity {
 
     @Id
     private UUID id;
 
-    @Column("first_name")
-    private String firstName;
+    @Column("student_id")
+    private String studentId;
 
-    @Column("last_name")
-    private String lastName;
+    @Column("date")
+    private LocalDate date;
+
+    @Column("status")
+    private AttendanceStatus status;
+}
+```
+
+```java
+// Para MongoDB
+@Document(collection = "students")
+public class Student {
+
+    @Id
+    private String id;
+
+    @Field("tenant_id")
+    @Indexed
+    private String tenantId;
+
+    @Field("first_name")
+    private String firstName;
 
     // ... más campos
 }
@@ -366,29 +471,27 @@ public class Student extends TenantAwareEntity {
 
 ---
 
-## 5. Microservicios del Sistema
+## 6. Microservicios del Sistema
 
-### 5.1 Inventario de Microservicios
+### 6.1 Inventario de Microservicios
 
 | Microservicio | Puerto | Base de Datos | Descripción |
 |---------------|--------|---------------|-------------|
-| **ms-gateway** | 8080 | - | API Gateway, routing, autenticación |
-| **ms-eureka** | 8761 | - | Service Discovery |
-| **ms-config** | 8888 | Git repo | Configuración centralizada |
-| **ms-institution** | 9080 | MongoDB | Gestión de instituciones y aulas |
-| **ms-users** | 9081 | MongoDB | Usuarios del sistema |
-| **ms-students** | 9082 | MongoDB | Gestión de estudiantes |
-| **ms-academic** | 9083 | PostgreSQL | Catálogo académico (cursos, competencias) |
+| **sigei-gateway** | 8080 | - | API Gateway, routing, seguridad |
+| **ms-institution** | 9080 | MongoDB | Instituciones, aulas, turnos |
+| **ms-users** | 9081 | MongoDB | Usuarios del sistema (docentes, admin) |
+| **ms-students** | 9082 | MongoDB | Estudiantes y apoderados |
+| **ms-academic** | 9083 | PostgreSQL | Cursos, competencias, capacidades |
 | **ms-enrollments** | 9084 | PostgreSQL | Matrículas y períodos académicos |
 | **ms-attendance** | 9085 | PostgreSQL | Control de asistencias |
 | **ms-grades** | 9086 | PostgreSQL | Notas y evaluaciones |
 | **ms-behavior** | 9087 | PostgreSQL | Comportamiento e incidentes |
 | **ms-psychology** | 9088 | PostgreSQL | Bienestar psicológico |
-| **ms-events** | 9089 | PostgreSQL | Eventos y calendario académico |
-| **ms-teacher-assignment** | 9090 | PostgreSQL | Asignación de profesores |
-| **ms-notification** | 9091 | MongoDB | Notificaciones (email, push, sms) |
+| **ms-events** | 9089 | PostgreSQL | Eventos y calendario |
+| **ms-teacher-assignment** | 9090 | PostgreSQL | Asignación de docentes |
+| **ms-notification** | 9091 | MongoDB | Notificaciones (consume RabbitMQ) |
 
-### 5.2 Bounded Contexts (DDD)
+### 6.2 Bounded Contexts (DDD)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────────┐
@@ -399,22 +502,21 @@ public class Student extends TenantAwareEntity {
 │  │                           CORE DOMAIN (Dominios Principales)                     │   │
 │  │                                                                                  │   │
 │  │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐                  │   │
-│  │  │   INSTITUTION   │  │    STUDENTS     │  │    ACADEMIC     │                  │   │
+│  │  │   INSTITUTION   │  │    STUDENTS     │  │    ENROLLMENT   │                  │   │
 │  │  │    CONTEXT      │  │    CONTEXT      │  │    CONTEXT      │                  │   │
 │  │  ├─────────────────┤  ├─────────────────┤  ├─────────────────┤                  │   │
-│  │  │ • Institution   │  │ • Student       │  │ • Course        │                  │   │
-│  │  │ • Classroom     │  │ • Guardian      │  │ • Competency    │                  │   │
-│  │  │ • Schedule      │  │ • HealthInfo    │  │ • Capacity      │                  │   │
-│  │  │ • AcademicYear  │  │ • Development   │  │ • Performance   │                  │   │
+│  │  │ • Institution   │  │ • Student       │  │ • Enrollment    │                  │   │
+│  │  │ • Classroom     │  │ • Guardian      │  │ • AcademicPeriod│                  │   │
+│  │  │ • AcademicYear  │  │ • HealthInfo    │  │ • Document      │                  │   │
 │  │  └─────────────────┘  └─────────────────┘  └─────────────────┘                  │   │
 │  │                                                                                  │   │
 │  │  ┌─────────────────┐  ┌─────────────────┐                                       │   │
-│  │  │   ENROLLMENT    │  │   ATTENDANCE    │                                       │   │
+│  │  │    ACADEMIC     │  │   ATTENDANCE    │                                       │   │
 │  │  │    CONTEXT      │  │    CONTEXT      │                                       │   │
 │  │  ├─────────────────┤  ├─────────────────┤                                       │   │
-│  │  │ • Enrollment    │  │ • Attendance    │                                       │   │
-│  │  │ • AcademicPeriod│  │ • Justification │                                       │   │
-│  │  │ • Document      │  │ • Summary       │                                       │   │
+│  │  │ • Course        │  │ • Attendance    │                                       │   │
+│  │  │ • Competency    │  │ • Justification │                                       │   │
+│  │  │ • Capacity      │  │ • DailyReport   │                                       │   │
 │  │  └─────────────────┘  └─────────────────┘                                       │   │
 │  └─────────────────────────────────────────────────────────────────────────────────┘   │
 │                                                                                         │
@@ -425,10 +527,10 @@ public class Student extends TenantAwareEntity {
 │  │  │     GRADES      │  │    BEHAVIOR     │  │   PSYCHOLOGY    │                  │   │
 │  │  │    CONTEXT      │  │    CONTEXT      │  │    CONTEXT      │                  │   │
 │  │  ├─────────────────┤  ├─────────────────┤  ├─────────────────┤                  │   │
-│  │  │ • Evaluation    │  │ • BehaviorRecord│  │ • Evaluation    │                  │   │
+│  │  │ • Evaluation    │  │ • BehaviorRecord│  │ • PsyEvaluation │                  │   │
 │  │  │ • ReportCard    │  │ • Incident      │  │ • SpecialNeeds  │                  │   │
 │  │  │ • Competency    │  │ • FollowUp      │  │ • Support       │                  │   │
-│  │  │   Evaluation    │  │                 │  │                 │                  │   │
+│  │  │   Achievement   │  │                 │  │                 │                  │   │
 │  │  └─────────────────┘  └─────────────────┘  └─────────────────┘                  │   │
 │  │                                                                                  │   │
 │  │  ┌─────────────────┐  ┌─────────────────┐                                       │   │
@@ -437,7 +539,6 @@ public class Student extends TenantAwareEntity {
 │  │  ├─────────────────┤  ├─────────────────┤                                       │   │
 │  │  │ • Event         │  │ • Assignment    │                                       │   │
 │  │  │ • Calendar      │  │ • Schedule      │                                       │   │
-│  │  │ • EventCalendar │  │ • Classroom     │                                       │   │
 │  │  └─────────────────┘  └─────────────────┘                                       │   │
 │  └─────────────────────────────────────────────────────────────────────────────────┘   │
 │                                                                                         │
@@ -457,60 +558,11 @@ public class Student extends TenantAwareEntity {
 └─────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 5.3 Context Map - Relaciones entre Contextos
-
-```
-                              ┌─────────────────┐
-                              │   INSTITUTION   │
-                              │    (Upstream)   │
-                              └────────┬────────┘
-                                       │
-              ┌────────────────────────┼────────────────────────┐
-              │                        │                        │
-              ▼                        ▼                        ▼
-    ┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐
-    │     USERS       │      │    STUDENTS     │      │   ENROLLMENT    │
-    │  (Conformist)   │      │  (Conformist)   │      │  (Conformist)   │
-    └────────┬────────┘      └────────┬────────┘      └────────┬────────┘
-             │                        │                        │
-             │         ┌──────────────┼──────────────┐         │
-             │         │              │              │         │
-             ▼         ▼              ▼              ▼         ▼
-    ┌─────────────────────────────────────────────────────────────────┐
-    │                         ACADEMIC                                 │
-    │                    (Shared Kernel)                               │
-    └─────────────────────────────────────────────────────────────────┘
-             │                        │                        │
-    ┌────────┴────────┐      ┌────────┴────────┐      ┌────────┴────────┐
-    │                 │      │                 │      │                 │
-    ▼                 ▼      ▼                 ▼      ▼                 ▼
-┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐
-│ GRADES  │  │ATTENDANCE│  │BEHAVIOR │  │PSYCHOLOGY│  │ EVENTS  │  │ TEACHER │
-│         │  │          │  │         │  │          │  │         │  │ ASSIGN  │
-└────┬────┘  └────┬─────┘  └────┬────┘  └────┬─────┘  └────┬────┘  └────┬────┘
-     │            │             │            │             │            │
-     └────────────┴─────────────┴────────────┴─────────────┴────────────┘
-                                       │
-                                       ▼
-                              ┌─────────────────┐
-                              │  NOTIFICATION   │
-                              │  (Anti-Corr.)   │
-                              └─────────────────┘
-
-Leyenda:
-──────────────────────────────────────────
-U = Upstream (proveedor de datos)
-D = Downstream (consumidor de datos)
-ACL = Anti-Corruption Layer
-OHS = Open Host Service
-PL = Published Language
-```
-
 ---
 
-## 6. Arquitectura Hexagonal + DDD
+## 7. Arquitectura Hexagonal + DDD
 
-### 6.1 Capas de la Arquitectura
+### 7.1 Capas de la Arquitectura
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────────┐
@@ -519,13 +571,12 @@ PL = Published Language
 │                                                                                         │
 │  ┌─────────────────────────────────────────────────────────────────────────────────┐   │
 │  │                            INFRASTRUCTURE LAYER                                  │   │
-│  │                         (Adaptadores Secundarios - Driven)                       │   │
+│  │                         (Adaptadores Primarios - Driving)                        │   │
 │  │                                                                                  │   │
-│  │  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐    │   │
-│  │  │  Repository   │  │   Messaging   │  │  External     │  │    Cache      │    │   │
-│  │  │  Adapters     │  │   Adapters    │  │  Services     │  │   Adapters    │    │   │
-│  │  │  (R2DBC/Mongo)│  │  (RabbitMQ)   │  │  (WebClient)  │  │   (Redis)     │    │   │
-│  │  └───────────────┘  └───────────────┘  └───────────────┘  └───────────────┘    │   │
+│  │  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐                        │   │
+│  │  │     REST      │  │   RabbitMQ    │  │   Scheduled   │                        │   │
+│  │  │  Controllers  │  │   Consumers   │  │     Tasks     │                        │   │
+│  │  └───────────────┘  └───────────────┘  └───────────────┘                        │   │
 │  └─────────────────────────────────────────────────────────────────────────────────┘   │
 │                                           │                                             │
 │                                           ▼                                             │
@@ -544,9 +595,7 @@ PL = Published Language
 │  │                                                                                  │   │
 │  │  ┌───────────────────────────────────────────────────────────────────────┐      │   │
 │  │  │                         USE CASES                                      │      │   │
-│  │  │                                                                        │      │   │
-│  │  │  CreateStudentUseCase | UpdateStudentUseCase | EnrollStudentUseCase   │      │   │
-│  │  │  RegisterAttendanceUseCase | GenerateReportCardUseCase | ...          │      │   │
+│  │  │  CreateStudentUseCase | RegisterAttendanceUseCase | SendNotification  │      │   │
 │  │  └───────────────────────────────────────────────────────────────────────┘      │   │
 │  └─────────────────────────────────────────────────────────────────────────────────┘   │
 │                                           │                                             │
@@ -555,45 +604,37 @@ PL = Published Language
 │  │                                DOMAIN LAYER                                      │   │
 │  │                              (Núcleo del Negocio)                                │   │
 │  │                                                                                  │   │
-│  │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐                  │   │
-│  │  │    ENTITIES     │  │  VALUE OBJECTS  │  │   AGGREGATES    │                  │   │
-│  │  ├─────────────────┤  ├─────────────────┤  ├─────────────────┤                  │   │
-│  │  │ Student         │  │ StudentId       │  │ StudentAggregate│                  │   │
-│  │  │ Institution     │  │ PersonalInfo    │  │ (Student +      │                  │   │
-│  │  │ Enrollment      │  │ Address         │  │  Guardians +    │                  │   │
-│  │  │ Attendance      │  │ HealthInfo      │  │  HealthInfo)    │                  │   │
-│  │  └─────────────────┘  └─────────────────┘  └─────────────────┘                  │   │
-│  │                                                                                  │   │
-│  │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐                  │   │
-│  │  │ DOMAIN EVENTS   │  │ DOMAIN SERVICES │  │  REPOSITORIES   │                  │   │
-│  │  ├─────────────────┤  ├─────────────────┤  │   (Interfaces)  │                  │   │
-│  │  │ StudentCreated  │  │ EnrollmentPolicy│  ├─────────────────┤                  │   │
-│  │  │ StudentEnrolled │  │ AttendanceRules │  │ StudentRepo     │                  │   │
-│  │  │ AttendanceMarked│  │ GradeCalculator │  │ EnrollmentRepo  │                  │   │
-│  │  └─────────────────┘  └─────────────────┘  └─────────────────┘                  │   │
+│  │  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐    │   │
+│  │  │   ENTITIES    │  │ VALUE OBJECTS │  │DOMAIN EVENTS  │  │DOMAIN SERVICES│    │   │
+│  │  │   Student     │  │   StudentId   │  │StudentCreated │  │   Policies    │    │   │
+│  │  │   Attendance  │  │   Address     │  │AttendanceMarked│  │   Rules       │    │   │
+│  │  └───────────────┘  └───────────────┘  └───────────────┘  └───────────────┘    │   │
 │  └─────────────────────────────────────────────────────────────────────────────────┘   │
 │                                           ▲                                             │
 │                                           │                                             │
 │  ┌─────────────────────────────────────────────────────────────────────────────────┐   │
 │  │                            INFRASTRUCTURE LAYER                                  │   │
-│  │                         (Adaptadores Primarios - Driving)                        │   │
+│  │                         (Adaptadores Secundarios - Driven)                       │   │
 │  │                                                                                  │   │
 │  │  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐    │   │
-│  │  │     REST      │  │   GraphQL     │  │     gRPC      │  │   Event       │    │   │
-│  │  │  Controllers  │  │   Resolvers   │  │   Services    │  │  Handlers     │    │   │
+│  │  │  Repository   │  │   RabbitMQ    │  │  WebClient    │  │   External    │    │   │
+│  │  │  Adapters     │  │   Publisher   │  │   (HTTP)      │  │   Services    │    │   │
+│  │  │ (R2DBC/Mongo) │  │               │  │               │  │   (Email,SMS) │    │   │
 │  │  └───────────────┘  └───────────────┘  └───────────────┘  └───────────────┘    │   │
 │  └─────────────────────────────────────────────────────────────────────────────────┘   │
 │                                                                                         │
 └─────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 6.2 Flujo de Dependencias
+### 7.2 Regla de Dependencias
 
 ```
                     ┌─────────────────────────────────────────┐
                     │                                         │
                     │   Las dependencias SIEMPRE apuntan      │
                     │   hacia el CENTRO (Domain Layer)        │
+                    │                                         │
+                    │   El Domain NO depende de nada externo  │
                     │                                         │
                     └─────────────────────────────────────────┘
 
@@ -603,7 +644,7 @@ PL = Published Language
                               Application
                                     │
                                     ▼
-                                 Domain     ◀── El núcleo NO depende de nada
+                                 Domain     ◀── Núcleo puro, sin dependencias externas
                                     ▲
                                     │
                               Application
@@ -614,9 +655,9 @@ PL = Published Language
 
 ---
 
-## 7. API Gateway con Spring Cloud Gateway
+## 8. API Gateway
 
-### 7.1 Configuración del Gateway
+### 8.1 Configuración del Gateway
 
 ```yaml
 # application.yml del Gateway
@@ -629,135 +670,89 @@ spring:
 
   cloud:
     gateway:
-      discovery:
-        locator:
-          enabled: true
-          lower-case-service-id: true
-
-      default-filters:
-        - name: RequestRateLimiter
-          args:
-            redis-rate-limiter:
-              replenishRate: 100
-              burstCapacity: 200
-        - RemoveRequestHeader=Cookie
-        - AddRequestHeader=X-Request-Source, gateway
-
       routes:
         # Instituciones
         - id: ms-institution
-          uri: lb://MS-INSTITUTION
+          uri: http://ms-institution:9080
           predicates:
             - Path=/api/v1/institutions/**, /api/v1/classrooms/**
-          filters:
-            - name: CircuitBreaker
-              args:
-                name: institutionCircuitBreaker
-                fallbackUri: forward:/fallback/institution
 
         # Usuarios
         - id: ms-users
-          uri: lb://MS-USERS
+          uri: http://ms-users:9081
           predicates:
             - Path=/api/v1/users/**
-          filters:
-            - name: CircuitBreaker
-              args:
-                name: usersCircuitBreaker
 
         # Estudiantes
         - id: ms-students
-          uri: lb://MS-STUDENTS
+          uri: http://ms-students:9082
           predicates:
-            - Path=/api/v1/students/**
+            - Path=/api/v1/students/**, /api/v1/guardians/**
 
         # Académico
         - id: ms-academic
-          uri: lb://MS-ACADEMIC
+          uri: http://ms-academic:9083
           predicates:
-            - Path=/api/v1/courses/**, /api/v1/competencies/**, /api/v1/capacities/**
+            - Path=/api/v1/courses/**, /api/v1/competencies/**
 
         # Matrículas
         - id: ms-enrollments
-          uri: lb://MS-ENROLLMENTS
+          uri: http://ms-enrollments:9084
           predicates:
             - Path=/api/v1/enrollments/**, /api/v1/academic-periods/**
 
         # Asistencias
         - id: ms-attendance
-          uri: lb://MS-ATTENDANCE
+          uri: http://ms-attendance:9085
           predicates:
             - Path=/api/v1/attendance/**
 
         # Notas
         - id: ms-grades
-          uri: lb://MS-GRADES
+          uri: http://ms-grades:9086
           predicates:
-            - Path=/api/v1/grades/**, /api/v1/evaluations/**, /api/v1/report-cards/**
+            - Path=/api/v1/grades/**, /api/v1/evaluations/**
 
         # Comportamiento
         - id: ms-behavior
-          uri: lb://MS-BEHAVIOR
+          uri: http://ms-behavior:9087
           predicates:
             - Path=/api/v1/behavior/**, /api/v1/incidents/**
 
         # Psicología
         - id: ms-psychology
-          uri: lb://MS-PSYCHOLOGY
+          uri: http://ms-psychology:9088
           predicates:
-            - Path=/api/v1/psychology/**, /api/v1/special-needs/**
+            - Path=/api/v1/psychology/**
 
         # Eventos
         - id: ms-events
-          uri: lb://MS-EVENTS
+          uri: http://ms-events:9089
           predicates:
-            - Path=/api/v1/events/**, /api/v1/calendars/**
+            - Path=/api/v1/events/**, /api/v1/calendar/**
 
-        # Asignación de profesores
+        # Asignación docente
         - id: ms-teacher-assignment
-          uri: lb://MS-TEACHER-ASSIGNMENT
+          uri: http://ms-teacher-assignment:9090
           predicates:
             - Path=/api/v1/teacher-assignments/**
 
         # Notificaciones
         - id: ms-notification
-          uri: lb://MS-NOTIFICATION
+          uri: http://ms-notification:9091
           predicates:
             - Path=/api/v1/notifications/**
 
-  # Seguridad con OAuth2
+  # Seguridad con OAuth2/Keycloak
   security:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/sigei}
-          jwk-set-uri: ${KEYCLOAK_JWK_URI:http://localhost:8180/realms/sigei/protocol/openid-connect/certs}
-
-# Eureka Client
-eureka:
-  client:
-    service-url:
-      defaultZone: ${EUREKA_URI:http://localhost:8761/eureka}
-  instance:
-    prefer-ip-address: true
-
-# Resilience4j
-resilience4j:
-  circuitbreaker:
-    instances:
-      default:
-        sliding-window-size: 10
-        failure-rate-threshold: 50
-        wait-duration-in-open-state: 10000
-        permitted-number-of-calls-in-half-open-state: 3
-
-  timelimiter:
-    instances:
-      default:
-        timeout-duration: 5s
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://keycloak:8080/realms/sigei}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:http://keycloak:8080/realms/sigei/protocol/openid-connect/certs}
 ```
 
-### 7.2 Seguridad en Gateway
+### 8.2 Seguridad en Gateway
 
 ```java
 @Configuration
@@ -771,16 +766,15 @@ public class GatewaySecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeExchange(exchanges -> exchanges
                 // Endpoints públicos
-                .pathMatchers("/actuator/health", "/actuator/info").permitAll()
-                .pathMatchers("/api/v1/auth/**").permitAll()
+                .pathMatchers("/actuator/health").permitAll()
                 .pathMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
 
                 // Endpoints protegidos por rol
                 .pathMatchers("/api/v1/institutions/**").hasAnyRole("ADMIN", "DIRECTOR")
                 .pathMatchers("/api/v1/users/**").hasAnyRole("ADMIN", "DIRECTOR")
                 .pathMatchers("/api/v1/students/**").hasAnyRole("ADMIN", "DIRECTOR", "PROFESOR", "AUXILIAR")
-                .pathMatchers("/api/v1/attendance/**").hasAnyRole("ADMIN", "DIRECTOR", "PROFESOR", "AUXILIAR")
-                .pathMatchers("/api/v1/grades/**").hasAnyRole("ADMIN", "DIRECTOR", "PROFESOR")
+                .pathMatchers("/api/v1/attendance/**").hasAnyRole("PROFESOR", "AUXILIAR")
+                .pathMatchers("/api/v1/grades/**").hasAnyRole("PROFESOR")
 
                 // Por defecto, autenticado
                 .anyExchange().authenticated()
@@ -792,28 +786,16 @@ public class GatewaySecurityConfig {
     }
 
     @Bean
-    public ReactiveJwtAuthenticationConverterAdapter jwtAuthConverter() {
-        JwtGrantedAuthoritiesConverter grantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
-        grantedAuthoritiesConverter.setAuthorityPrefix("ROLE_");
-        grantedAuthoritiesConverter.setAuthoritiesClaimName("roles");
-
-        JwtAuthenticationConverter jwtAuthConverter = new JwtAuthenticationConverter();
-        jwtAuthConverter.setJwtGrantedAuthoritiesConverter(grantedAuthoritiesConverter);
-
-        return new ReactiveJwtAuthenticationConverterAdapter(jwtAuthConverter);
-    }
-
-    @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(List.of(
+            "http://localhost:3000",
             "http://localhost:5173",
-            "https://sigei.edu.pe"
+            "https://sigei.vallegrande.edu.pe"
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
-        config.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
@@ -824,99 +806,18 @@ public class GatewaySecurityConfig {
 
 ---
 
-## 8. Service Discovery con Eureka
-
-### 8.1 Eureka Server
-
-```yaml
-# application.yml del Eureka Server
-server:
-  port: 8761
-
-spring:
-  application:
-    name: sigei-eureka
-
-eureka:
-  instance:
-    hostname: localhost
-  client:
-    register-with-eureka: false
-    fetch-registry: false
-    service-url:
-      defaultZone: http://${eureka.instance.hostname}:${server.port}/eureka/
-  server:
-    enable-self-preservation: false
-    eviction-interval-timer-in-ms: 5000
-```
-
-### 8.2 Eureka Client (en cada microservicio)
-
-```yaml
-# Configuración cliente en cada microservicio
-eureka:
-  client:
-    service-url:
-      defaultZone: ${EUREKA_URI:http://localhost:8761/eureka}
-    fetch-registry: true
-    register-with-eureka: true
-  instance:
-    prefer-ip-address: true
-    lease-renewal-interval-in-seconds: 10
-    lease-expiration-duration-in-seconds: 30
-    metadata-map:
-      version: ${APP_VERSION:1.0.0}
-```
-
-### 8.3 Diagrama de Registro
-
-```
-┌─────────────────────────────────────────────────────────────────────────────────────────┐
-│                                    EUREKA SERVER                                         │
-│                                    Puerto: 8761                                          │
-├─────────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                         │
-│   Registered Services:                                                                  │
-│   ┌─────────────────────────────────────────────────────────────────────────────┐      │
-│   │ Service Name          │ Instance ID          │ Status │ IP:Port           │      │
-│   ├───────────────────────┼──────────────────────┼────────┼───────────────────┤      │
-│   │ SIGEI-GATEWAY         │ gateway:8080         │   UP   │ 192.168.1.10:8080 │      │
-│   │ MS-INSTITUTION        │ institution:9080     │   UP   │ 192.168.1.11:9080 │      │
-│   │ MS-USERS              │ users:9081           │   UP   │ 192.168.1.12:9081 │      │
-│   │ MS-STUDENTS           │ students:9082        │   UP   │ 192.168.1.13:9082 │      │
-│   │ MS-ACADEMIC           │ academic:9083        │   UP   │ 192.168.1.14:9083 │      │
-│   │ MS-ENROLLMENTS        │ enrollments:9084     │   UP   │ 192.168.1.15:9084 │      │
-│   │ MS-ATTENDANCE         │ attendance:9085      │   UP   │ 192.168.1.16:9085 │      │
-│   │ MS-GRADES             │ grades:9086          │   UP   │ 192.168.1.17:9086 │      │
-│   │ MS-BEHAVIOR           │ behavior:9087        │   UP   │ 192.168.1.18:9087 │      │
-│   │ MS-PSYCHOLOGY         │ psychology:9088      │   UP   │ 192.168.1.19:9088 │      │
-│   │ MS-EVENTS             │ events:9089          │   UP   │ 192.168.1.20:9089 │      │
-│   │ MS-TEACHER-ASSIGNMENT │ teacher:9090         │   UP   │ 192.168.1.21:9090 │      │
-│   │ MS-NOTIFICATION       │ notification:9091    │   UP   │ 192.168.1.22:9091 │      │
-│   └─────────────────────────────────────────────────────────────────────────────┘      │
-│                                                                                         │
-└─────────────────────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
 ## 9. Seguridad con Keycloak
 
-### 9.1 ¿Por qué Keycloak y no Firebase?
+### 9.1 ¿Por qué Keycloak?
 
 | Característica | Keycloak | Firebase Auth |
 |----------------|----------|---------------|
-| **On-premise** | ✅ Self-hosted | ❌ Cloud only |
-| **Multi-tenancy** | ✅ Realms nativos | ⚠️ Limitado |
-| **Personalización** | ✅ Total control | ❌ Limitado |
+| **On-premise** | ✅ Self-hosted en VPC | ❌ Cloud only |
+| **Multi-tenancy** | ✅ Realms + Claims | ⚠️ Limitado |
+| **Control total** | ✅ Personalizable | ❌ Limitado |
 | **Roles granulares** | ✅ RBAC completo | ⚠️ Básico |
-| **Integración LDAP/AD** | ✅ Nativo | ❌ No |
-| **SAML/OIDC** | ✅ Completo | ⚠️ Solo OIDC |
 | **Costo** | ✅ Open Source | ⚠️ Pay-per-use |
-| **Soberanía datos** | ✅ Datos en Perú | ❌ Servidores Google |
-| **SLA educativo** | ✅ Configurable | ⚠️ Depende plan |
-
-**Decisión**: **Keycloak** por control total, multi-tenancy nativo y cumplimiento de normativas peruanas de datos.
+| **Datos en Perú** | ✅ En tu servidor | ❌ Servidores Google |
 
 ### 9.2 Arquitectura de Keycloak
 
@@ -927,16 +828,7 @@ eureka:
 ├─────────────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                         │
 │  ┌─────────────────────────────────────────────────────────────────────────────────┐   │
-│  │                            REALM: sigei-master                                   │   │
-│  │                    (Administración del sistema)                                  │   │
-│  │                                                                                  │   │
-│  │  Roles: SUPER_ADMIN                                                              │   │
-│  │  Usuarios: Administradores del sistema                                           │   │
-│  └─────────────────────────────────────────────────────────────────────────────────┘   │
-│                                                                                         │
-│  ┌─────────────────────────────────────────────────────────────────────────────────┐   │
 │  │                            REALM: sigei                                          │   │
-│  │                    (Usuarios de instituciones)                                   │   │
 │  │                                                                                  │   │
 │  │  ┌───────────────────────────────────────────────────────────────────────────┐  │   │
 │  │  │                           ROLES                                            │  │   │
@@ -948,198 +840,110 @@ eureka:
 │  │  │  PSICOLOGO  → Psicólogo escolar                                            │  │   │
 │  │  │  PADRE      → Padre de familia                                             │  │   │
 │  │  │  MADRE      → Madre de familia                                             │  │   │
-│  │  │  TUTOR      → Tutor legal                                                  │  │   │
+│  │  │  TUTOR      → Apoderado/Tutor legal                                        │  │   │
 │  │  └───────────────────────────────────────────────────────────────────────────┘  │   │
 │  │                                                                                  │   │
 │  │  ┌───────────────────────────────────────────────────────────────────────────┐  │   │
-│  │  │                      CUSTOM ATTRIBUTES                                     │  │   │
+│  │  │                      CUSTOM CLAIMS (en el JWT)                             │  │   │
 │  │  ├───────────────────────────────────────────────────────────────────────────┤  │   │
 │  │  │  institution_id  → ID de la institución (tenant)                          │  │   │
 │  │  │  classroom_ids   → IDs de aulas asignadas (profesores)                    │  │   │
-│  │  │  student_ids     → IDs de estudiantes (padres)                            │  │   │
+│  │  │  student_ids     → IDs de hijos (padres)                                  │  │   │
 │  │  └───────────────────────────────────────────────────────────────────────────┘  │   │
 │  │                                                                                  │   │
 │  │  ┌───────────────────────────────────────────────────────────────────────────┐  │   │
 │  │  │                          CLIENTS                                           │  │   │
 │  │  ├───────────────────────────────────────────────────────────────────────────┤  │   │
 │  │  │  sigei-web      → SPA React (public client)                               │  │   │
-│  │  │  sigei-gateway  → API Gateway (confidential client)                       │  │   │
-│  │  │  sigei-mobile   → App móvil (public client)                               │  │   │
+│  │  │  sigei-gateway  → API Gateway (confidential)                              │  │   │
 │  │  └───────────────────────────────────────────────────────────────────────────┘  │   │
 │  └─────────────────────────────────────────────────────────────────────────────────┘   │
 │                                                                                         │
 └─────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 9.3 Flujo de Autenticación
-
-```
-┌──────────┐     ┌─────────────┐     ┌──────────┐     ┌─────────────┐     ┌─────────────┐
-│  Usuario │     │  Frontend   │     │ Keycloak │     │   Gateway   │     │ Microservice│
-└────┬─────┘     └──────┬──────┘     └────┬─────┘     └──────┬──────┘     └──────┬──────┘
-     │                  │                 │                  │                   │
-     │  1. Login        │                 │                  │                   │
-     │─────────────────▶│                 │                  │                   │
-     │                  │                 │                  │                   │
-     │                  │ 2. Redirect to  │                  │                   │
-     │                  │    /auth        │                  │                   │
-     │◀─────────────────│                 │                  │                   │
-     │                  │                 │                  │                   │
-     │ 3. Auth Request  │                 │                  │                   │
-     │─────────────────────────────────────▶                 │                   │
-     │                  │                 │                  │                   │
-     │                  │                 │ 4. Login Form    │                   │
-     │◀──────────────────────────────────────                │                   │
-     │                  │                 │                  │                   │
-     │ 5. Credentials   │                 │                  │                   │
-     │────────────────────────────────────▶                  │                   │
-     │                  │                 │                  │                   │
-     │                  │                 │ 6. Validate &    │                   │
-     │                  │                 │    Redirect with │                   │
-     │                  │                 │    Auth Code     │                   │
-     │◀──────────────────────────────────────                │                   │
-     │                  │                 │                  │                   │
-     │                  │ 7. Exchange     │                  │                   │
-     │                  │    Auth Code    │                  │                   │
-     │                  │─────────────────▶                  │                   │
-     │                  │                 │                  │                   │
-     │                  │ 8. Access Token │                  │                   │
-     │                  │    + Refresh    │                  │                   │
-     │                  │◀─────────────────                  │                   │
-     │                  │                 │                  │                   │
-     │                  │ 9. API Call with Bearer Token      │                   │
-     │                  │────────────────────────────────────▶                   │
-     │                  │                 │                  │                   │
-     │                  │                 │                  │ 10. Validate JWT  │
-     │                  │                 │                  │────────────────────▶
-     │                  │                 │                  │                   │
-     │                  │                 │                  │ 11. Forward with  │
-     │                  │                 │                  │     Tenant ID     │
-     │                  │                 │                  │───────────────────▶
-     │                  │                 │                  │                   │
-     │                  │                 │                  │ 12. Response      │
-     │                  │◀────────────────────────────────────◀───────────────────
-     │  13. Response    │                 │                  │                   │
-     │◀─────────────────                  │                  │                   │
-```
-
-### 9.4 Estructura del JWT Token
+### 9.3 Estructura del JWT Token
 
 ```json
 {
-  "header": {
-    "alg": "RS256",
-    "typ": "JWT",
-    "kid": "keycloak-key-id"
+  "exp": 1707580800,
+  "iat": 1707577200,
+  "iss": "http://keycloak:8180/realms/sigei",
+  "sub": "user-uuid-12345",
+
+  "institution_id": "inst-uuid-001",
+  "institution_name": "I.E.I. Los Jardines",
+  "classroom_ids": ["classroom-001", "classroom-002"],
+  "student_ids": ["student-001"],
+
+  "realm_access": {
+    "roles": ["PROFESOR"]
   },
-  "payload": {
-    "exp": 1707580800,
-    "iat": 1707577200,
-    "jti": "unique-token-id",
-    "iss": "http://localhost:8180/realms/sigei",
-    "aud": "sigei-web",
-    "sub": "user-uuid-12345",
-    "typ": "Bearer",
-    "azp": "sigei-web",
 
-    // Claims personalizados para multi-tenancy
-    "institution_id": "inst-uuid-001",
-    "institution_name": "I.E.I. Los Jardines",
-    "classroom_ids": ["classroom-001", "classroom-002"],
-    "student_ids": ["student-001"],
-
-    // Roles del usuario
-    "realm_access": {
-      "roles": ["PROFESOR", "default-roles-sigei"]
-    },
-    "resource_access": {
-      "sigei-web": {
-        "roles": ["access"]
-      }
-    },
-
-    // Datos del usuario
-    "preferred_username": "juan.perez",
-    "email": "juan.perez@ejemplo.com",
-    "given_name": "Juan",
-    "family_name": "Pérez",
-    "name": "Juan Pérez"
-  }
+  "preferred_username": "juan.perez",
+  "email": "juan.perez@ejemplo.com",
+  "name": "Juan Pérez"
 }
 ```
 
-### 9.5 Permisos por Rol
+### 9.4 Matriz de Permisos
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │                                     MATRIZ DE PERMISOS                                                  │
-├────────────────┬────────────┬──────────┬──────────┬──────────┬──────────┬───────────┬───────────┬──────┤
-│ Recurso        │ SUPER_ADMIN│  ADMIN   │ DIRECTOR │ PROFESOR │ AUXILIAR │ PSICOLOGO │  PADRE/   │TUTOR │
-│                │            │          │          │          │          │           │  MADRE    │      │
-├────────────────┼────────────┼──────────┼──────────┼──────────┼──────────┼───────────┼───────────┼──────┤
-│ Institutions   │   CRUD     │   CRUD   │    R     │    R     │    R     │     R     │     R     │  R   │
-│ Users          │   CRUD     │   CRUD   │   CRU    │    R     │    R     │     R     │     -     │  -   │
-│ Classrooms     │   CRUD     │   CRUD   │   CRUD   │    R     │    R     │     R     │     R     │  R   │
-│ Students       │   CRUD     │   CRUD   │   CRUD   │    RU    │    R     │    RU     │    R*     │ R*   │
-│ Enrollments    │   CRUD     │   CRUD   │   CRUD   │    R     │    R     │     R     │    R*     │ R*   │
-│ Attendance     │   CRUD     │   CRUD   │   CRUD   │   CRUD   │   CRU    │     R     │    R*     │ R*   │
-│ Grades         │   CRUD     │   CRUD   │   CRUD   │   CRUD   │    R     │     R     │    R*     │ R*   │
-│ Behavior       │   CRUD     │   CRUD   │   CRUD   │   CRU    │   CRU    │    CRU    │    R*     │ R*   │
-│ Psychology     │   CRUD     │   CRUD   │   CRU    │    R     │    R     │   CRUD    │    R*     │ R*   │
-│ Events         │   CRUD     │   CRUD   │   CRUD   │    R     │    R     │     R     │     R     │  R   │
-│ TeacherAssign  │   CRUD     │   CRUD   │   CRUD   │    R     │    -     │     -     │     -     │  -   │
-│ Notifications  │   CRUD     │   CRUD   │   CRUD   │    RU    │    R     │    RU     │    RU     │ RU   │
-├────────────────┴────────────┴──────────┴──────────┴──────────┴──────────┴───────────┴───────────┴──────┤
-│ Leyenda: C=Create, R=Read, U=Update, D=Delete, R*=Solo sus estudiantes/hijos                           │
+├────────────────┬──────────┬──────────┬──────────┬──────────┬───────────┬───────────────────────────────┤
+│ Recurso        │  ADMIN   │ DIRECTOR │ PROFESOR │ AUXILIAR │ PSICOLOGO │  PADRE/MADRE/TUTOR            │
+├────────────────┼──────────┼──────────┼──────────┼──────────┼───────────┼───────────────────────────────┤
+│ Institutions   │   CRUD   │    R     │    R     │    R     │     R     │     R                         │
+│ Users          │   CRUD   │   CRU    │    R     │    R     │     R     │     -                         │
+│ Classrooms     │   CRUD   │   CRUD   │    R     │    R     │     R     │     R                         │
+│ Students       │   CRUD   │   CRUD   │    RU    │    R     │    RU     │    R (solo sus hijos)         │
+│ Enrollments    │   CRUD   │   CRUD   │    R     │    R     │     R     │    R (solo sus hijos)         │
+│ Attendance     │   CRUD   │   CRUD   │   CRUD   │   CRU    │     R     │    R (solo sus hijos)         │
+│ Grades         │   CRUD   │   CRUD   │   CRUD   │    R     │     R     │    R (solo sus hijos)         │
+│ Behavior       │   CRUD   │   CRUD   │   CRU    │   CRU    │    CRU    │    R (solo sus hijos)         │
+│ Psychology     │   CRUD   │   CRU    │    R     │    R     │   CRUD    │    R (solo sus hijos)         │
+│ Events         │   CRUD   │   CRUD   │    R     │    R     │     R     │     R                         │
+│ TeacherAssign  │   CRUD   │   CRUD   │    R     │    -     │     -     │     -                         │
+│ Notifications  │   CRUD   │   CRUD   │    RU    │    R     │    RU     │    RU (solo las suyas)        │
+├────────────────┴──────────┴──────────┴──────────┴──────────┴───────────┴───────────────────────────────┤
+│ Leyenda: C=Create, R=Read, U=Update, D=Delete                                                          │
 └────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 10. Event-Driven Architecture con RabbitMQ
+## 10. Mensajería con RabbitMQ
 
-### 10.1 RabbitMQ como Message Broker
+### 10.1 Arquitectura de RabbitMQ
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────────┐
 │                                   RABBITMQ                                               │
-│                              Message Broker - Puerto: 5672                               │
-│                              Admin UI - Puerto: 15672                                    │
+│                              Puerto AMQP: 5672                                           │
+│                              Puerto Admin: 15672                                         │
 ├─────────────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                         │
 │  ┌─────────────────────────────────────────────────────────────────────────────────┐   │
-│  │                           EXCHANGES (Topic)                                      │   │
+│  │                           EXCHANGES                                              │   │
 │  ├─────────────────────────────────────────────────────────────────────────────────┤   │
-│  │                                                                                  │   │
-│  │  ┌─────────────────────────┐     ┌─────────────────────────┐                    │   │
-│  │  │ sigei.institution       │     │ sigei.student           │                    │   │
-│  │  │ (Topic Exchange)        │     │ (Topic Exchange)        │                    │   │
-│  │  ├─────────────────────────┤     ├─────────────────────────┤                    │   │
-│  │  │ Routing Keys:           │     │ Routing Keys:           │                    │   │
-│  │  │ • institution.created   │     │ • student.created       │                    │   │
-│  │  │ • institution.updated   │     │ • student.enrolled      │                    │   │
-│  │  │ • classroom.created     │     │ • student.transferred   │                    │   │
-│  │  └─────────────────────────┘     └─────────────────────────┘                    │   │
 │  │                                                                                  │   │
 │  │  ┌─────────────────────────┐     ┌─────────────────────────┐                    │   │
 │  │  │ sigei.attendance        │     │ sigei.notification      │                    │   │
 │  │  │ (Topic Exchange)        │     │ (Direct Exchange)       │                    │   │
 │  │  ├─────────────────────────┤     ├─────────────────────────┤                    │   │
 │  │  │ Routing Keys:           │     │ Routing Keys:           │                    │   │
-│  │  │ • attendance.marked     │     │ • email                 │                    │   │
-│  │  │ • attendance.absent     │     │ • push                  │                    │   │
+│  │  │ • attendance.absent     │     │ • email                 │                    │   │
+│  │  │ • attendance.late       │     │ • push                  │                    │   │
 │  │  │ • attendance.justified  │     │ • sms                   │                    │   │
-│  │  │ • attendance.report     │     │ • whatsapp              │                    │   │
-│  │  └─────────────────────────┘     └─────────────────────────┘                    │   │
-│  │                                                                                  │   │
-│  │  ┌─────────────────────────┐                                                    │   │
-│  │  │ sigei.document          │     ┌─────────────────────────┐                    │   │
-│  │  │ (Topic Exchange)        │     │  DEAD LETTER EXCHANGE   │                    │   │
-│  │  ├─────────────────────────┤     │  sigei.dlx              │                    │   │
-│  │  │ Routing Keys:           │     ├─────────────────────────┤                    │   │
-│  │  │ • document.uploaded     │     │ Mensajes fallidos van   │                    │   │
-│  │  │ • document.shared       │     │ aquí para retry o       │                    │   │
-│  │  │ • report.generated      │     │ análisis manual         │                    │   │
+│  │  └─────────────────────────┘     │ • whatsapp              │                    │   │
+│  │                                   └─────────────────────────┘                    │   │
+│  │  ┌─────────────────────────┐     ┌─────────────────────────┐                    │   │
+│  │  │ sigei.document          │     │ sigei.dlx               │                    │   │
+│  │  │ (Topic Exchange)        │     │ (Dead Letter Exchange)  │                    │   │
+│  │  ├─────────────────────────┤     ├─────────────────────────┤                    │   │
+│  │  │ • document.shared       │     │ Mensajes fallidos       │                    │   │
+│  │  │ • report.generated      │     │ para retry/análisis     │                    │   │
 │  │  └─────────────────────────┘     └─────────────────────────┘                    │   │
 │  │                                                                                  │   │
 │  └─────────────────────────────────────────────────────────────────────────────────┘   │
@@ -1156,9 +960,6 @@ eureka:
 │  │  attendance.absent.queue ──────► ms-notification (Alertas de ausencia)          │   │
 │  │  document.share.queue ─────────► ms-notification (Envío de documentos)          │   │
 │  │                                                                                  │   │
-│  │  dlx.retry.queue ──────────────► Reintentos automáticos                         │   │
-│  │  dlx.failed.queue ─────────────► Revisión manual                                │   │
-│  │                                                                                  │   │
 │  └─────────────────────────────────────────────────────────────────────────────────┘   │
 │                                                                                         │
 └─────────────────────────────────────────────────────────────────────────────────────────┘
@@ -1170,177 +971,48 @@ eureka:
 # application.yml
 spring:
   rabbitmq:
-    host: ${RABBITMQ_HOST:localhost}
+    host: ${RABBITMQ_HOST:rabbitmq}
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USER:sigei}
     password: ${RABBITMQ_PASSWORD:sigei_dev}
     virtual-host: /sigei
 
-    # Configuración de listeners
     listener:
       simple:
-        acknowledge-mode: manual  # ACK manual para control
-        prefetch: 10              # Mensajes por consumer
+        acknowledge-mode: manual
+        prefetch: 10
         retry:
           enabled: true
           initial-interval: 1000
           max-attempts: 3
-          multiplier: 2.0
-
-    # Publisher confirms
-    publisher-confirm-type: correlated
-    publisher-returns: true
 ```
 
-### 10.3 Configuración de Exchanges y Queues
-
-```java
-@Configuration
-public class RabbitMQConfig {
-
-    // ========== EXCHANGES ==========
-
-    @Bean
-    public TopicExchange attendanceExchange() {
-        return new TopicExchange("sigei.attendance");
-    }
-
-    @Bean
-    public TopicExchange studentExchange() {
-        return new TopicExchange("sigei.student");
-    }
-
-    @Bean
-    public TopicExchange documentExchange() {
-        return new TopicExchange("sigei.document");
-    }
-
-    @Bean
-    public DirectExchange notificationExchange() {
-        return new DirectExchange("sigei.notification");
-    }
-
-    @Bean
-    public DirectExchange deadLetterExchange() {
-        return new DirectExchange("sigei.dlx");
-    }
-
-    // ========== QUEUES ==========
-
-    @Bean
-    public Queue emailQueue() {
-        return QueueBuilder.durable("notification.email.queue")
-            .withArgument("x-dead-letter-exchange", "sigei.dlx")
-            .withArgument("x-dead-letter-routing-key", "dlx.email")
-            .build();
-    }
-
-    @Bean
-    public Queue pushQueue() {
-        return QueueBuilder.durable("notification.push.queue")
-            .withArgument("x-dead-letter-exchange", "sigei.dlx")
-            .build();
-    }
-
-    @Bean
-    public Queue smsQueue() {
-        return QueueBuilder.durable("notification.sms.queue")
-            .withArgument("x-dead-letter-exchange", "sigei.dlx")
-            .build();
-    }
-
-    @Bean
-    public Queue whatsappQueue() {
-        return QueueBuilder.durable("notification.whatsapp.queue")
-            .withArgument("x-dead-letter-exchange", "sigei.dlx")
-            .build();
-    }
-
-    @Bean
-    public Queue attendanceAbsentQueue() {
-        return QueueBuilder.durable("attendance.absent.queue").build();
-    }
-
-    @Bean
-    public Queue documentShareQueue() {
-        return QueueBuilder.durable("document.share.queue").build();
-    }
-
-    // ========== BINDINGS ==========
-
-    @Bean
-    public Binding emailBinding() {
-        return BindingBuilder.bind(emailQueue())
-            .to(notificationExchange())
-            .with("email");
-    }
-
-    @Bean
-    public Binding attendanceAbsentBinding() {
-        return BindingBuilder.bind(attendanceAbsentQueue())
-            .to(attendanceExchange())
-            .with("attendance.absent");
-    }
-
-    @Bean
-    public Binding documentShareBinding() {
-        return BindingBuilder.bind(documentShareQueue())
-            .to(documentExchange())
-            .with("document.shared");
-    }
-}
-```
-
-### 10.4 Publisher de Mensajes
+### 10.3 Publisher de Eventos
 
 ```java
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class RabbitMQPublisher {
+public class AttendanceEventPublisher {
 
     private final RabbitTemplate rabbitTemplate;
 
-    public void publishAttendanceEvent(AttendanceEvent event) {
-        String routingKey = "attendance." + event.getStatus().toLowerCase();
-
+    public void publishAbsentStudent(AttendanceEvent event) {
         rabbitTemplate.convertAndSend(
             "sigei.attendance",
-            routingKey,
+            "attendance.absent",
             event,
             message -> {
                 message.getMessageProperties().setHeader("tenant_id", event.getTenantId());
-                message.getMessageProperties().setHeader("timestamp", Instant.now().toString());
                 return message;
             }
         );
-
-        log.info("Published attendance event: {} for student: {}",
-            routingKey, event.getStudentId());
-    }
-
-    public void sendNotification(NotificationCommand command) {
-        rabbitTemplate.convertAndSend(
-            "sigei.notification",
-            command.getChannel().toLowerCase(),  // email, push, sms, whatsapp
-            command
-        );
-
-        log.info("Notification queued: {} to {}",
-            command.getChannel(), command.getRecipient());
-    }
-
-    public void publishDocumentShared(DocumentSharedEvent event) {
-        rabbitTemplate.convertAndSend(
-            "sigei.document",
-            "document.shared",
-            event
-        );
+        log.info("Published absent event for student: {}", event.getStudentId());
     }
 }
 ```
 
-### 10.5 Consumer de Mensajes
+### 10.4 Consumer de Eventos
 
 ```java
 @Component
@@ -1348,70 +1020,66 @@ public class RabbitMQPublisher {
 @Slf4j
 public class AttendanceEventConsumer {
 
-    private final NotificationService notificationService;
-    private final ParentNotificationService parentNotificationService;
+    private final ParentNotificationService notificationService;
 
     @RabbitListener(queues = "attendance.absent.queue")
     public void handleAbsentStudent(
             AttendanceEvent event,
             Channel channel,
-            @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) {
+            @Header(AmqpHeaders.DELIVERY_TAG) long tag) throws IOException {
 
         try {
             log.info("Processing absent notification for student: {}", event.getStudentId());
 
-            // Notificar a los padres sobre la ausencia
-            parentNotificationService.notifyAbsence(
-                event.getTenantId(),
-                event.getStudentId(),
-                event.getDate()
-            );
+            // Notificar a los padres
+            notificationService.notifyAbsence(event);
 
             // ACK manual
-            channel.basicAck(deliveryTag, false);
+            channel.basicAck(tag, false);
 
         } catch (Exception e) {
-            log.error("Error processing absent notification", e);
-            // NACK - irá al Dead Letter Queue
-            channel.basicNack(deliveryTag, false, false);
-        }
-    }
-}
-
-@Component
-@RequiredArgsConstructor
-@Slf4j
-public class DocumentEventConsumer {
-
-    private final ParentNotificationService parentNotificationService;
-
-    @RabbitListener(queues = "document.share.queue")
-    public void handleDocumentShared(
-            DocumentSharedEvent event,
-            Channel channel,
-            @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) {
-
-        try {
-            // Enviar documento a los padres
-            parentNotificationService.sendDocument(
-                event.getTenantId(),
-                event.getStudentId(),
-                event.getDocumentType(),
-                event.getDocumentUrl(),
-                event.getMessage()
-            );
-
-            channel.basicAck(deliveryTag, false);
-
-        } catch (Exception e) {
-            log.error("Error sending document to parent", e);
-            channel.basicNack(deliveryTag, false, false);
+            log.error("Error processing notification", e);
+            // NACK - va al Dead Letter Queue
+            channel.basicNack(tag, false, false);
         }
     }
 }
 ```
 
-### 10.6 Flujo de Notificación a Padres
+---
+
+## 11. Microservicio de Notificaciones
+
+### 11.1 Responsabilidades
+
+El `ms-notification` es el único microservicio que envía mensajes a los padres/apoderados:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                              MS-NOTIFICATION                                             │
+│                              Puerto: 9091                                                │
+├─────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                         │
+│  RESPONSABILIDADES:                                                                     │
+│  ├── Consumir eventos de RabbitMQ                                                       │
+│  ├── Enviar emails (Gmail/SendGrid)                                                     │
+│  ├── Enviar push notifications (Firebase Cloud Messaging)                              │
+│  ├── Enviar SMS (Twilio)                                                                │
+│  ├── Enviar WhatsApp (Twilio WhatsApp API)                                             │
+│  ├── Guardar historial de notificaciones                                                │
+│  └── Gestionar plantillas de mensajes                                                   │
+│                                                                                         │
+│  EVENTOS QUE CONSUME:                                                                   │
+│  ├── attendance.absent → "Su hijo Juan no asistió hoy"                                 │
+│  ├── attendance.late → "Su hijo llegó tarde"                                           │
+│  ├── document.shared → "Se ha compartido la libreta de notas"                          │
+│  ├── behavior.incident → "Se registró un incidente"                                    │
+│  └── grade.published → "Las notas del bimestre están disponibles"                      │
+│                                                                                         │
+└─────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 11.2 Flujo de Notificación a Padres
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────────┐
@@ -1440,41 +1108,108 @@ public class DocumentEventConsumer {
 │        │◀───────────────│                │                │                │          │
 │        │                │                │                │                │          │
 │        │                │                │ 5. Consume     │                │          │
-│        │                │                │    message     │                │          │
 │        │                │                │───────────────▶│                │          │
 │        │                │                │                │                │          │
 │        │                │                │                │ 6. Obtener     │          │
 │        │                │                │                │    datos del   │          │
 │        │                │                │                │    estudiante  │          │
 │        │                │                │                │    y padres    │          │
+│        │                │                │                │    (REST)      │          │
 │        │                │                │                │────────────────│          │
 │        │                │                │                │                │          │
 │        │                │                │                │ 7. Enviar      │          │
-│        │                │                │                │    Push/Email  │          │
-│        │                │                │                │    /WhatsApp   │          │
+│        │                │                │                │    WhatsApp    │          │
+│        │                │                │                │    + Push      │          │
 │        │                │                │                │───────────────▶│          │
 │        │                │                │                │                │          │
-│        │                │                │                │                │ 📱 Notif │
+│        │                │                │                │                │ 📱       │
 │        │                │                │                │                │ "Su hijo │
 │        │                │                │                │                │ Juan no  │
-│        │                │                │                │                │ asistió" │
+│        │                │                │                │                │ asistió  │
+│        │                │                │                │                │ hoy..."  │
 │                                                                                         │
 └─────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
+### 11.3 Tipos de Notificaciones
+
+| Tipo | Canal Principal | Canal Alternativo | Caso de Uso |
+|------|-----------------|-------------------|-------------|
+| **Ausencia** | WhatsApp | Email | Estudiante no asistió |
+| **Tardanza** | Push | WhatsApp | Estudiante llegó tarde |
+| **Documento** | Email | Push | Libreta, certificados |
+| **Incidente** | WhatsApp + Email | - | Problema de comportamiento |
+| **Evento** | Push | Email | Reunión, actividad |
+| **Recordatorio** | Push | - | Pago, documentos pendientes |
+
+### 11.4 Estructura del Microservicio
+
+```
+ms-notification/
+├── src/main/java/pe/edu/vallegrande/notification/
+│   ├── domain/
+│   │   ├── model/
+│   │   │   ├── Notification.java
+│   │   │   ├── NotificationChannel.java (EMAIL, PUSH, SMS, WHATSAPP)
+│   │   │   ├── NotificationStatus.java (PENDING, SENT, FAILED)
+│   │   │   └── NotificationTemplate.java
+│   │   └── event/
+│   │       ├── AttendanceEvent.java
+│   │       ├── DocumentEvent.java
+│   │       └── BehaviorEvent.java
+│   │
+│   ├── application/
+│   │   ├── port/
+│   │   │   ├── input/
+│   │   │   │   └── SendNotificationUseCase.java
+│   │   │   └── output/
+│   │   │       ├── NotificationPersistencePort.java
+│   │   │       ├── EmailSenderPort.java
+│   │   │       ├── SmsSenderPort.java
+│   │   │       ├── PushSenderPort.java
+│   │   │       └── WhatsAppSenderPort.java
+│   │   └── service/
+│   │       ├── NotificationService.java
+│   │       └── ParentNotificationService.java
+│   │
+│   └── infrastructure/
+│       ├── adapter/
+│       │   ├── input/
+│       │   │   ├── rest/
+│       │   │   │   └── NotificationController.java
+│       │   │   └── rabbitmq/
+│       │   │       ├── AttendanceEventConsumer.java
+│       │   │       ├── DocumentEventConsumer.java
+│       │   │       └── BehaviorEventConsumer.java
+│       │   └── output/
+│       │       ├── persistence/
+│       │       │   └── NotificationMongoAdapter.java
+│       │       ├── email/
+│       │       │   └── SendGridEmailAdapter.java
+│       │       ├── sms/
+│       │       │   └── TwilioSmsAdapter.java
+│       │       ├── push/
+│       │       │   └── FirebasePushAdapter.java
+│       │       └── whatsapp/
+│       │           └── TwilioWhatsAppAdapter.java
+│       └── config/
+│           ├── RabbitMQConfig.java
+│           └── SecurityConfig.java
+```
+
 ---
 
-## 11. Estructura de Carpetas Estandarizada
+## 12. Estructura de Carpetas Estandarizada
 
-### 11.1 Estructura de Proyecto
+### 12.1 Estructura del Proyecto Completo
 
 ```
 sigei-microservices/
 ├── 📁 infrastructure/
 │   ├── 📁 docker/
 │   │   ├── docker-compose.yml
-│   │   ├── docker-compose.dev.yml
-│   │   └── docker-compose.prod.yml
+│   │   ├── docker-compose.prod.yml
+│   │   └── .env.example
 │   ├── 📁 nginx/
 │   │   ├── nginx.conf
 │   │   └── 📁 ssl/
@@ -1484,474 +1219,197 @@ sigei-microservices/
 │   │   └── init.sql
 │   └── 📁 scripts/
 │       ├── deploy.sh
-│       ├── backup.sh
-│       ├── setup-local.sh
-│       └── init-keycloak.sh
+│       └── backup.sh
 │
 ├── 📁 services/
-│   ├── 📁 sigei-eureka/               # Service Discovery
-│   ├── 📁 sigei-config/               # Config Server
 │   ├── 📁 sigei-gateway/              # API Gateway
-│   │
-│   ├── 📁 ms-institution/             # Microservicio de Instituciones
-│   ├── 📁 ms-users/                   # Microservicio de Usuarios
-│   ├── 📁 ms-students/                # Microservicio de Estudiantes
-│   ├── 📁 ms-academic/                # Microservicio Académico
-│   ├── 📁 ms-enrollments/             # Microservicio de Matrículas
-│   ├── 📁 ms-attendance/              # Microservicio de Asistencias
-│   ├── 📁 ms-grades/                  # Microservicio de Notas
-│   ├── 📁 ms-behavior/                # Microservicio de Comportamiento
-│   ├── 📁 ms-psychology/              # Microservicio de Psicología
-│   ├── 📁 ms-events/                  # Microservicio de Eventos
-│   ├── 📁 ms-teacher-assignment/      # Microservicio de Asignación Docente
-│   └── 📁 ms-notification/            # Microservicio de Notificaciones
-│
-├── 📁 shared/
-│   ├── 📁 sigei-common/               # Librería común
-│   ├── 📁 sigei-events/               # Definición de eventos
-│   └── 📁 sigei-security/             # Configuración de seguridad
+│   ├── 📁 ms-institution/             # Instituciones
+│   ├── 📁 ms-users/                   # Usuarios
+│   ├── 📁 ms-students/                # Estudiantes
+│   ├── 📁 ms-academic/                # Académico
+│   ├── 📁 ms-enrollments/             # Matrículas
+│   ├── 📁 ms-attendance/              # Asistencias
+│   ├── 📁 ms-grades/                  # Notas
+│   ├── 📁 ms-behavior/                # Comportamiento
+│   ├── 📁 ms-psychology/              # Psicología
+│   ├── 📁 ms-events/                  # Eventos
+│   ├── 📁 ms-teacher-assignment/      # Asignación Docente
+│   └── 📁 ms-notification/            # Notificaciones
 │
 └── 📁 frontend/
-    └── 📁 sigei-web/                  # Aplicación React
+    └── 📁 sigei-web/                  # React App
 ```
 
-### 11.2 Estructura de un Microservicio (Arquitectura Hexagonal + DDD)
+### 12.2 Estructura de un Microservicio
 
 ```
-ms-students/
+ms-attendance/
 ├── 📄 pom.xml
 ├── 📄 Dockerfile
 ├── 📄 README.md
 │
-├── 📁 src/
-│   ├── 📁 main/
-│   │   ├── 📁 java/
-│   │   │   └── 📁 pe/edu/vallegrande/students/
-│   │   │       │
-│   │   │       ├── 📄 MsStudentsApplication.java
-│   │   │       │
-│   │   │       ├── 📁 domain/                          # 🟢 CAPA DE DOMINIO
-│   │   │       │   │
-│   │   │       │   ├── 📁 model/                       # Entidades y Value Objects
-│   │   │       │   │   ├── 📄 Student.java             # Aggregate Root
-│   │   │       │   │   ├── 📄 StudentId.java           # Value Object (ID tipado)
-│   │   │       │   │   ├── 📁 vo/                      # Value Objects
-│   │   │       │   │   │   ├── 📄 PersonalInfo.java
-│   │   │       │   │   │   ├── 📄 Guardian.java
-│   │   │       │   │   │   ├── 📄 HealthInfo.java
-│   │   │       │   │   │   ├── 📄 DevelopmentInfo.java
-│   │   │       │   │   │   └── 📄 Address.java
-│   │   │       │   │   └── 📁 enums/
-│   │   │       │   │       ├── 📄 StudentStatus.java
-│   │   │       │   │       ├── 📄 Gender.java
-│   │   │       │   │       ├── 📄 DocumentType.java
-│   │   │       │   │       └── 📄 GuardianRole.java
-│   │   │       │   │
-│   │   │       │   ├── 📁 event/                       # Eventos de Dominio
-│   │   │       │   │   ├── 📄 StudentCreatedEvent.java
-│   │   │       │   │   ├── 📄 StudentEnrolledEvent.java
-│   │   │       │   │   └── 📄 StudentTransferredEvent.java
-│   │   │       │   │
-│   │   │       │   ├── 📁 exception/                   # Excepciones de Dominio
-│   │   │       │   │   ├── 📄 StudentNotFoundException.java
-│   │   │       │   │   ├── 📄 DuplicateDocumentException.java
-│   │   │       │   │   └── 📄 InvalidGuardianException.java
-│   │   │       │   │
-│   │   │       │   ├── 📁 repository/                  # Interfaces de Repositorio (Puertos)
-│   │   │       │   │   └── 📄 StudentRepository.java
-│   │   │       │   │
-│   │   │       │   └── 📁 service/                     # Servicios de Dominio
-│   │   │       │       └── 📄 StudentDomainService.java
-│   │   │       │
-│   │   │       ├── 📁 application/                     # 🟡 CAPA DE APLICACIÓN
-│   │   │       │   │
-│   │   │       │   ├── 📁 port/                        # Puertos (Interfaces)
-│   │   │       │   │   ├── 📁 input/                   # Puertos de Entrada (Casos de Uso)
-│   │   │       │   │   │   ├── 📄 CreateStudentUseCase.java
-│   │   │       │   │   │   ├── 📄 UpdateStudentUseCase.java
-│   │   │       │   │   │   ├── 📄 GetStudentUseCase.java
-│   │   │       │   │   │   └── 📄 DeleteStudentUseCase.java
-│   │   │       │   │   │
-│   │   │       │   │   └── 📁 output/                  # Puertos de Salida
-│   │   │       │   │       ├── 📄 StudentPersistencePort.java
-│   │   │       │   │       ├── 📄 StudentEventPublisherPort.java
-│   │   │       │   │       └── 📄 UserServicePort.java
-│   │   │       │   │
-│   │   │       │   ├── 📁 service/                     # Implementación de Casos de Uso
-│   │   │       │   │   ├── 📄 CreateStudentService.java
-│   │   │       │   │   ├── 📄 UpdateStudentService.java
-│   │   │       │   │   ├── 📄 GetStudentService.java
-│   │   │       │   │   └── 📄 DeleteStudentService.java
-│   │   │       │   │
-│   │   │       │   ├── 📁 dto/                         # DTOs de Aplicación
-│   │   │       │   │   ├── 📁 command/                 # Comandos (Input)
-│   │   │       │   │   │   ├── 📄 CreateStudentCommand.java
-│   │   │       │   │   │   └── 📄 UpdateStudentCommand.java
-│   │   │       │   │   │
-│   │   │       │   │   └── 📁 query/                   # Queries (Output)
-│   │   │       │   │       ├── 📄 StudentResponse.java
-│   │   │       │   │       └── 📄 StudentListResponse.java
-│   │   │       │   │
-│   │   │       │   └── 📁 mapper/                      # Mappers
-│   │   │       │       └── 📄 StudentApplicationMapper.java
-│   │   │       │
-│   │   │       └── 📁 infrastructure/                  # 🔵 CAPA DE INFRAESTRUCTURA
-│   │   │           │
-│   │   │           ├── 📁 adapter/
-│   │   │           │   │
-│   │   │           │   ├── 📁 input/                   # Adaptadores de Entrada (Driving)
-│   │   │           │   │   ├── 📁 rest/                # API REST
-│   │   │           │   │   │   ├── 📄 StudentController.java
-│   │   │           │   │   │   ├── 📄 StudentExceptionHandler.java
-│   │   │           │   │   │   ├── 📁 request/         # DTOs de Request
-│   │   │           │   │   │   │   ├── 📄 CreateStudentRequest.java
-│   │   │           │   │   │   │   └── 📄 UpdateStudentRequest.java
-│   │   │           │   │   │   └── 📁 response/        # DTOs de Response
-│   │   │           │   │   │       ├── 📄 StudentRestResponse.java
-│   │   │           │   │   │       └── 📄 ApiResponse.java
-│   │   │           │   │   │
-│   │   │           │   │   └── 📁 event/               # Consumidor de Eventos
-│   │   │           │   │       └── 📄 UserEventHandler.java
-│   │   │           │   │
-│   │   │           │   └── 📁 output/                  # Adaptadores de Salida (Driven)
-│   │   │           │       ├── 📁 persistence/         # Persistencia
-│   │   │           │       │   ├── 📁 mongodb/
-│   │   │           │       │   │   ├── 📄 StudentMongoRepository.java
-│   │   │           │       │   │   ├── 📄 StudentDocument.java
-│   │   │           │       │   │   └── 📄 StudentPersistenceAdapter.java
-│   │   │           │       │   └── 📄 StudentPersistenceMapper.java
-│   │   │           │       │
-│   │   │           │       ├── 📁 messaging/           # Mensajería
-│   │   │           │       │   └── 📄 StudentRabbitPublisher.java
-│   │   │           │       │
-│   │   │           │       └── 📁 client/              # Clientes HTTP
-│   │   │           │           ├── 📄 UserServiceClient.java
-│   │   │           │           ├── 📄 InstitutionServiceClient.java
-│   │   │           │           └── 📁 dto/
-│   │   │           │               ├── 📄 UserClientResponse.java
-│   │   │           │               └── 📄 InstitutionClientResponse.java
-│   │   │           │
-│   │   │           └── 📁 config/                      # Configuraciones
-│   │   │               ├── 📄 SecurityConfig.java
-│   │   │               ├── 📄 WebClientConfig.java
-│   │   │               ├── 📄 RabbitMQConfig.java
-│   │   │               ├── 📄 MongoConfig.java
-│   │   │               ├── 📄 OpenApiConfig.java
-│   │   │               └── 📄 TenantConfig.java
-│   │   │
-│   │   └── 📁 resources/
-│   │       ├── 📄 application.yml
-│   │       ├── 📄 application-dev.yml
-│   │       ├── 📄 application-prod.yml
-│   │       └── 📄 bootstrap.yml
-│   │
-│   └── 📁 test/
-│       └── 📁 java/
-│           └── 📁 pe/edu/vallegrande/students/
-│               ├── 📁 domain/
-│               │   ├── 📄 StudentTest.java
-│               │   └── 📄 StudentDomainServiceTest.java
-│               ├── 📁 application/
-│               │   └── 📄 CreateStudentServiceTest.java
-│               └── 📁 infrastructure/
-│                   ├── 📁 rest/
-│                   │   └── 📄 StudentControllerTest.java
-│                   └── 📁 persistence/
-│                       └── 📄 StudentPersistenceAdapterTest.java
+└── 📁 src/
+    ├── 📁 main/
+    │   ├── 📁 java/pe/edu/vallegrande/attendance/
+    │   │   │
+    │   │   ├── 📄 MsAttendanceApplication.java
+    │   │   │
+    │   │   ├── 📁 domain/                          # 🟢 DOMINIO
+    │   │   │   ├── 📁 model/
+    │   │   │   │   ├── 📄 Attendance.java          # Entidad
+    │   │   │   │   └── 📁 enums/
+    │   │   │   │       └── 📄 AttendanceStatus.java
+    │   │   │   ├── 📁 event/
+    │   │   │   │   └── 📄 AttendanceMarkedEvent.java
+    │   │   │   ├── 📁 exception/
+    │   │   │   │   └── 📄 AttendanceNotFoundException.java
+    │   │   │   └── 📁 repository/
+    │   │   │       └── 📄 AttendanceRepository.java  # Interface
+    │   │   │
+    │   │   ├── 📁 application/                     # 🟡 APLICACIÓN
+    │   │   │   ├── 📁 port/
+    │   │   │   │   ├── 📁 input/
+    │   │   │   │   │   ├── 📄 RegisterAttendanceUseCase.java
+    │   │   │   │   │   └── 📄 GetAttendanceUseCase.java
+    │   │   │   │   └── 📁 output/
+    │   │   │   │       ├── 📄 AttendancePersistencePort.java
+    │   │   │   │       └── 📄 AttendanceEventPort.java
+    │   │   │   ├── 📁 service/
+    │   │   │   │   └── 📄 AttendanceService.java
+    │   │   │   └── 📁 dto/
+    │   │   │       ├── 📄 AttendanceRequest.java
+    │   │   │       └── 📄 AttendanceResponse.java
+    │   │   │
+    │   │   └── 📁 infrastructure/                  # 🔵 INFRAESTRUCTURA
+    │   │       ├── 📁 adapter/
+    │   │       │   ├── 📁 input/
+    │   │       │   │   └── 📁 rest/
+    │   │       │   │       └── 📄 AttendanceController.java
+    │   │       │   └── 📁 output/
+    │   │       │       ├── 📁 persistence/
+    │   │       │       │   ├── 📄 AttendanceR2dbcRepository.java
+    │   │       │       │   └── 📄 AttendancePersistenceAdapter.java
+    │   │       │       └── 📁 rabbitmq/
+    │   │       │           └── 📄 AttendanceRabbitPublisher.java
+    │   │       └── 📁 config/
+    │   │           ├── 📄 SecurityConfig.java
+    │   │           ├── 📄 RabbitMQConfig.java
+    │   │           └── 📄 R2dbcConfig.java
+    │   │
+    │   └── 📁 resources/
+    │       ├── 📄 application.yml
+    │       └── 📄 application-docker.yml
+    │
+    └── 📁 test/
+        └── 📁 java/pe/edu/vallegrande/attendance/
+            ├── 📁 domain/
+            ├── 📁 application/
+            └── 📁 infrastructure/
 ```
-
-### 11.3 Convenciones de Nomenclatura
-
-| Elemento | Patrón | Ejemplo |
-|----------|--------|---------|
-| **Paquete base** | `pe.edu.vallegrande.{contexto}` | `pe.edu.vallegrande.students` |
-| **Entidad** | `{Nombre}` (singular) | `Student`, `Institution` |
-| **Value Object** | `{Nombre}` (descriptivo) | `PersonalInfo`, `Address` |
-| **Evento de dominio** | `{Entidad}{Acción}Event` | `StudentCreatedEvent` |
-| **Excepción** | `{Descripción}Exception` | `StudentNotFoundException` |
-| **Caso de uso** | `{Acción}{Entidad}UseCase` | `CreateStudentUseCase` |
-| **Servicio de aplicación** | `{Acción}{Entidad}Service` | `CreateStudentService` |
-| **Comando** | `{Acción}{Entidad}Command` | `CreateStudentCommand` |
-| **Controller REST** | `{Entidad}Controller` | `StudentController` |
-| **Request DTO** | `{Acción}{Entidad}Request` | `CreateStudentRequest` |
-| **Response DTO** | `{Entidad}Response` | `StudentResponse` |
-| **Repository port** | `{Entidad}PersistencePort` | `StudentPersistencePort` |
-| **Repository adapter** | `{Entidad}PersistenceAdapter` | `StudentPersistenceAdapter` |
-| **Client** | `{Servicio}ServiceClient` | `UserServiceClient` |
 
 ---
 
-## 12. Configuración Centralizada
+## 13. Configuración por Variables de Entorno
 
-### 12.1 Spring Cloud Config Server
+### 13.1 Variables de Entorno Requeridas
+
+```bash
+# ============================================================
+# BASES DE DATOS
+# ============================================================
+DATABASE_URL=r2dbc:postgresql://postgres:5432/sigei
+DATABASE_USER=sigei
+DATABASE_PASSWORD=your_secure_password
+
+MONGODB_URI=mongodb://sigei:your_password@mongodb:27017/sigei?authSource=admin
+
+# ============================================================
+# KEYCLOAK
+# ============================================================
+KEYCLOAK_ISSUER_URI=http://keycloak:8080/realms/sigei
+KEYCLOAK_JWK_URI=http://keycloak:8080/realms/sigei/protocol/openid-connect/certs
+
+# ============================================================
+# RABBITMQ
+# ============================================================
+RABBITMQ_HOST=rabbitmq
+RABBITMQ_PORT=5672
+RABBITMQ_USER=sigei
+RABBITMQ_PASSWORD=your_password
+RABBITMQ_VHOST=/sigei
+
+# ============================================================
+# NOTIFICACIONES - EMAIL
+# ============================================================
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=sigei.notificaciones@vallegrande.edu.pe
+SMTP_PASSWORD=your_app_password
+
+# ============================================================
+# NOTIFICACIONES - SMS/WHATSAPP (Twilio)
+# ============================================================
+TWILIO_ACCOUNT_SID=your_account_sid
+TWILIO_AUTH_TOKEN=your_auth_token
+TWILIO_PHONE_NUMBER=+1234567890
+TWILIO_WHATSAPP_NUMBER=whatsapp:+14155238886
+
+# ============================================================
+# NOTIFICACIONES - PUSH (Firebase)
+# ============================================================
+FIREBASE_PROJECT_ID=sigei-notifications
+FIREBASE_CREDENTIALS=/app/firebase-credentials.json
+```
+
+### 13.2 application.yml de un Microservicio
 
 ```yaml
-# sigei-config/application.yml
 server:
-  port: 8888
+  port: 9085
 
 spring:
   application:
-    name: sigei-config
+    name: ms-attendance
 
-  cloud:
-    config:
-      server:
-        git:
-          uri: ${CONFIG_REPO_URI:https://github.com/sigei/config-repo}
-          default-label: main
-          search-paths: '{application}'
-          clone-on-start: true
+  # PostgreSQL con R2DBC
+  r2dbc:
+    url: ${DATABASE_URL:r2dbc:postgresql://localhost:5432/sigei}
+    username: ${DATABASE_USER:sigei}
+    password: ${DATABASE_PASSWORD:sigei_dev}
 
-        # Para desarrollo local
-        native:
-          search-locations: classpath:/config
+  # RabbitMQ
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:sigei}
+    password: ${RABBITMQ_PASSWORD:sigei_dev}
+    virtual-host: ${RABBITMQ_VHOST:/sigei}
 
-  profiles:
-    active: native  # Cambiar a 'git' en producción
-
-# Eureka
-eureka:
-  client:
-    service-url:
-      defaultZone: ${EUREKA_URI:http://localhost:8761/eureka}
-```
-
-### 12.2 Estructura del Repositorio de Configuración
-
-```
-config-repo/
-├── 📁 application/                    # Configuración compartida
-│   ├── 📄 application.yml             # Base para todos
-│   ├── 📄 application-dev.yml
-│   └── 📄 application-prod.yml
-│
-├── 📁 ms-institution/
-│   ├── 📄 ms-institution.yml
-│   ├── 📄 ms-institution-dev.yml
-│   └── 📄 ms-institution-prod.yml
-│
-├── 📁 ms-students/
-│   ├── 📄 ms-students.yml
-│   ├── 📄 ms-students-dev.yml
-│   └── 📄 ms-students-prod.yml
-│
-└── ... (demás microservicios)
-```
-
-### 12.3 Configuración Base Compartida
-
-```yaml
-# application.yml (compartido)
-spring:
   # Seguridad OAuth2
   security:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${KEYCLOAK_ISSUER_URI}
-          jwk-set-uri: ${KEYCLOAK_JWK_URI}
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/sigei}
 
-# Eureka Client
-eureka:
-  client:
-    service-url:
-      defaultZone: ${EUREKA_URI:http://localhost:8761/eureka}
-  instance:
-    prefer-ip-address: true
-
-# Actuator
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics,prometheus
-  endpoint:
-    health:
-      show-details: always
-  health:
-    circuitbreakers:
-      enabled: true
-
-# Logging
-logging:
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
-  level:
-    pe.edu.vallegrande: DEBUG
-    org.springframework.security: DEBUG
-
-# OpenAPI/Swagger
+# OpenAPI
 springdoc:
   api-docs:
     path: /v3/api-docs
   swagger-ui:
     path: /swagger-ui.html
-```
 
-### 12.4 Variables de Entorno Requeridas
-
-```bash
-# Base de datos
-DATABASE_URL=r2dbc:postgresql://localhost:5432/sigei
-DATABASE_USER=sigei_user
-DATABASE_PASSWORD=secure_password
-
-# MongoDB
-MONGODB_URI=mongodb://localhost:27017/sigei
-
-# Keycloak
-KEYCLOAK_ISSUER_URI=http://localhost:8180/realms/sigei
-KEYCLOAK_JWK_URI=http://localhost:8180/realms/sigei/protocol/openid-connect/certs
-
-# RabbitMQ
-RABBITMQ_HOST=localhost
-RABBITMQ_PORT=5672
-RABBITMQ_USER=sigei
-RABBITMQ_PASSWORD=sigei_dev
-RABBITMQ_VHOST=/sigei
-
-# Redis
-REDIS_HOST=localhost
-REDIS_PORT=6379
-
-# Eureka
-EUREKA_URI=http://localhost:8761/eureka
-
-# Config Server
-CONFIG_SERVER_URI=http://localhost:8888
+# Logging
+logging:
+  level:
+    pe.edu.vallegrande: DEBUG
 ```
 
 ---
 
-## 13. Observabilidad
+## 14. Despliegue con Docker Compose
 
-### 13.1 Stack de Observabilidad
-
-```
-┌─────────────────────────────────────────────────────────────────────────────────────────┐
-│                                   OBSERVABILIDAD                                         │
-├─────────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                         │
-│  ┌─────────────────────────────────────────────────────────────────────────────────┐   │
-│  │                              LOGS                                                │   │
-│  │                                                                                  │   │
-│  │  ┌────────────┐    ┌────────────┐    ┌────────────┐    ┌────────────┐          │   │
-│  │  │Microservice│───▶│  Fluentd   │───▶│Elasticsearch│──▶│  Kibana    │          │   │
-│  │  │   Logs     │    │  Collector │    │   Storage  │    │ Dashboard  │          │   │
-│  │  └────────────┘    └────────────┘    └────────────┘    └────────────┘          │   │
-│  └─────────────────────────────────────────────────────────────────────────────────┘   │
-│                                                                                         │
-│  ┌─────────────────────────────────────────────────────────────────────────────────┐   │
-│  │                              METRICS                                             │   │
-│  │                                                                                  │   │
-│  │  ┌────────────┐    ┌────────────┐    ┌────────────┐                             │   │
-│  │  │Microservice│───▶│ Prometheus │───▶│  Grafana   │                             │   │
-│  │  │  /actuator │    │   Scrape   │    │ Dashboards │                             │   │
-│  │  │  /metrics  │    │            │    │            │                             │   │
-│  │  └────────────┘    └────────────┘    └────────────┘                             │   │
-│  └─────────────────────────────────────────────────────────────────────────────────┘   │
-│                                                                                         │
-│  ┌─────────────────────────────────────────────────────────────────────────────────┐   │
-│  │                              TRACING                                             │   │
-│  │                                                                                  │   │
-│  │  ┌────────────┐    ┌────────────┐    ┌────────────┐                             │   │
-│  │  │Microservice│───▶│   Zipkin   │───▶│   Jaeger   │                             │   │
-│  │  │   Traces   │    │  Collector │    │     UI     │                             │   │
-│  │  └────────────┘    └────────────┘    └────────────┘                             │   │
-│  └─────────────────────────────────────────────────────────────────────────────────┘   │
-│                                                                                         │
-└─────────────────────────────────────────────────────────────────────────────────────────┘
-```
-
-### 13.2 Configuración de Micrometer
-
-```yaml
-# application.yml
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics,prometheus
-  endpoint:
-    health:
-      show-details: always
-      probes:
-        enabled: true
-  metrics:
-    distribution:
-      percentiles-histogram:
-        http.server.requests: true
-    tags:
-      application: ${spring.application.name}
-  tracing:
-    sampling:
-      probability: 1.0
-
-# Prometheus
-spring:
-  cloud:
-    discovery:
-      client:
-        health-indicator:
-          enabled: true
-```
-
----
-
-## 14. Despliegue en VPC (Docker Compose)
-
-### 14.1 Infraestructura de Despliegue
-
-```
-┌─────────────────────────────────────────────────────────────────────────────────────────┐
-│                          VPC: lab.vallegrande.edu.pe                                     │
-│                              Despliegue con Docker Compose                               │
-├─────────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                         │
-│  ┌─────────────────────────────────────────────────────────────────────────────────┐   │
-│  │                         SERVIDOR PRINCIPAL                                       │   │
-│  │                    (Docker Host - Ubuntu 22.04 LTS)                              │   │
-│  │                                                                                  │   │
-│  │  ┌─────────────────────────────────────────────────────────────────────────┐    │   │
-│  │  │                    CONTENEDORES DE INFRAESTRUCTURA                       │    │   │
-│  │  │                                                                          │    │   │
-│  │  │  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐            │    │   │
-│  │  │  │ PostgreSQL │ │  MongoDB   │ │   Redis    │ │  RabbitMQ  │            │    │   │
-│  │  │  │   :5432    │ │   :27017   │ │   :6379    │ │:5672/:15672│            │    │   │
-│  │  │  └────────────┘ └────────────┘ └────────────┘ └────────────┘            │    │   │
-│  │  │                                                                          │    │   │
-│  │  │  ┌────────────┐ ┌────────────┐                                          │    │   │
-│  │  │  │  Keycloak  │ │   Nginx    │                                          │    │   │
-│  │  │  │   :8180    │ │  (Proxy)   │                                          │    │   │
-│  │  │  │            │ │   :80/443  │                                          │    │   │
-│  │  │  └────────────┘ └────────────┘                                          │    │   │
-│  │  └─────────────────────────────────────────────────────────────────────────┘    │   │
-│  │                                                                                  │   │
-│  │  ┌─────────────────────────────────────────────────────────────────────────┐    │   │
-│  │  │                    CONTENEDORES DE SPRING CLOUD                          │    │   │
-│  │  │                                                                          │    │   │
-│  │  │  ┌────────────┐ ┌────────────┐ ┌────────────┐                           │    │   │
-│  │  │  │   Eureka   │ │   Config   │ │  Gateway   │                           │    │   │
-│  │  │  │   :8761    │ │   :8888    │ │   :8080    │                           │    │   │
-│  │  │  └────────────┘ └────────────┘ └────────────┘                           │    │   │
-│  │  └─────────────────────────────────────────────────────────────────────────┘    │   │
-│  │                                                                                  │   │
-│  │  ┌─────────────────────────────────────────────────────────────────────────┐    │   │
-│  │  │                    CONTENEDORES DE NEGOCIO                               │    │   │
-│  │  │                                                                          │    │   │
-│  │  │  ms-institution:9080  ms-users:9081       ms-students:9082              │    │   │
-│  │  │  ms-academic:9083     ms-enrollments:9084 ms-attendance:9085            │    │   │
-│  │  │  ms-grades:9086       ms-behavior:9087    ms-psychology:9088            │    │   │
-│  │  │  ms-events:9089       ms-teacher:9090     ms-notification:9091          │    │   │
-│  │  └─────────────────────────────────────────────────────────────────────────┘    │   │
-│  │                                                                                  │   │
-│  └─────────────────────────────────────────────────────────────────────────────────┘   │
-│                                                                                         │
-└─────────────────────────────────────────────────────────────────────────────────────────┘
-```
-
-### 14.2 Docker Compose - Desarrollo Local
+### 14.1 Docker Compose Principal
 
 ```yaml
 # docker-compose.yml
@@ -1959,7 +1417,7 @@ version: '3.8'
 
 services:
   # ============================================================
-  # INFRAESTRUCTURA
+  # BASES DE DATOS
   # ============================================================
 
   postgres:
@@ -1967,7 +1425,7 @@ services:
     container_name: sigei-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: sigei
+      POSTGRES_USER: ${DB_USER:-sigei}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-sigei_dev}
       POSTGRES_DB: sigei
     ports:
@@ -1986,7 +1444,7 @@ services:
     container_name: sigei-mongodb
     restart: unless-stopped
     environment:
-      MONGO_INITDB_ROOT_USERNAME: sigei
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-sigei}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-sigei_dev}
     ports:
       - "27017:27017"
@@ -1998,31 +1456,21 @@ services:
       timeout: 5s
       retries: 5
 
-  redis:
-    image: redis:7-alpine
-    container_name: sigei-redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+  # ============================================================
+  # MENSAJERÍA
+  # ============================================================
 
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
     container_name: sigei-rabbitmq
     restart: unless-stopped
     environment:
-      RABBITMQ_DEFAULT_USER: sigei
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-sigei}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-sigei_dev}
       RABBITMQ_DEFAULT_VHOST: /sigei
     ports:
-      - "5672:5672"   # AMQP
-      - "15672:15672" # Management UI
+      - "5672:5672"
+      - "15672:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
@@ -2030,6 +1478,10 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # ============================================================
+  # SEGURIDAD
+  # ============================================================
 
   keycloak:
     image: quay.io/keycloak/keycloak:24.0.0
@@ -2041,7 +1493,7 @@ services:
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_PASSWORD:-admin}
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
-      KC_DB_USERNAME: sigei
+      KC_DB_USERNAME: ${DB_USER:-sigei}
       KC_DB_PASSWORD: ${DB_PASSWORD:-sigei_dev}
     ports:
       - "8180:8080"
@@ -2052,35 +1504,8 @@ services:
         condition: service_healthy
 
   # ============================================================
-  # SPRING CLOUD INFRASTRUCTURE
+  # API GATEWAY
   # ============================================================
-
-  eureka:
-    build: ./services/sigei-eureka
-    container_name: sigei-eureka
-    restart: unless-stopped
-    ports:
-      - "8761:8761"
-    environment:
-      - SPRING_PROFILES_ACTIVE=docker
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-
-  config:
-    build: ./services/sigei-config
-    container_name: sigei-config
-    restart: unless-stopped
-    ports:
-      - "8888:8888"
-    environment:
-      - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_URI=http://eureka:8761/eureka
-    depends_on:
-      eureka:
-        condition: service_healthy
 
   gateway:
     build: ./services/sigei-gateway
@@ -2090,14 +1515,13 @@ services:
       - "8080:8080"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_URI=http://eureka:8761/eureka
       - KEYCLOAK_ISSUER_URI=http://keycloak:8080/realms/sigei
+      - KEYCLOAK_JWK_URI=http://keycloak:8080/realms/sigei/protocol/openid-connect/certs
     depends_on:
-      - eureka
       - keycloak
 
   # ============================================================
-  # MICROSERVICIOS DE NEGOCIO
+  # MICROSERVICIOS
   # ============================================================
 
   ms-institution:
@@ -2108,11 +1532,10 @@ services:
       - "9080:9080"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_URI=http://eureka:8761/eureka
-      - MONGODB_URI=mongodb://sigei:${MONGO_PASSWORD:-sigei_dev}@mongodb:27017/sigei?authSource=admin
+      - MONGODB_URI=mongodb://${MONGO_USER:-sigei}:${MONGO_PASSWORD:-sigei_dev}@mongodb:27017/sigei?authSource=admin
       - RABBITMQ_HOST=rabbitmq
+      - KEYCLOAK_ISSUER_URI=http://keycloak:8080/realms/sigei
     depends_on:
-      - eureka
       - mongodb
       - rabbitmq
 
@@ -2124,11 +1547,10 @@ services:
       - "9081:9081"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_URI=http://eureka:8761/eureka
-      - MONGODB_URI=mongodb://sigei:${MONGO_PASSWORD:-sigei_dev}@mongodb:27017/sigei?authSource=admin
+      - MONGODB_URI=mongodb://${MONGO_USER:-sigei}:${MONGO_PASSWORD:-sigei_dev}@mongodb:27017/sigei?authSource=admin
       - RABBITMQ_HOST=rabbitmq
+      - KEYCLOAK_ISSUER_URI=http://keycloak:8080/realms/sigei
     depends_on:
-      - eureka
       - mongodb
       - rabbitmq
 
@@ -2140,11 +1562,10 @@ services:
       - "9082:9082"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_URI=http://eureka:8761/eureka
-      - MONGODB_URI=mongodb://sigei:${MONGO_PASSWORD:-sigei_dev}@mongodb:27017/sigei?authSource=admin
+      - MONGODB_URI=mongodb://${MONGO_USER:-sigei}:${MONGO_PASSWORD:-sigei_dev}@mongodb:27017/sigei?authSource=admin
       - RABBITMQ_HOST=rabbitmq
+      - KEYCLOAK_ISSUER_URI=http://keycloak:8080/realms/sigei
     depends_on:
-      - eureka
       - mongodb
       - rabbitmq
 
@@ -2156,13 +1577,12 @@ services:
       - "9083:9083"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_URI=http://eureka:8761/eureka
       - DATABASE_URL=r2dbc:postgresql://postgres:5432/sigei
-      - DATABASE_USER=sigei
+      - DATABASE_USER=${DB_USER:-sigei}
       - DATABASE_PASSWORD=${DB_PASSWORD:-sigei_dev}
       - RABBITMQ_HOST=rabbitmq
+      - KEYCLOAK_ISSUER_URI=http://keycloak:8080/realms/sigei
     depends_on:
-      - eureka
       - postgres
       - rabbitmq
 
@@ -2174,13 +1594,12 @@ services:
       - "9084:9084"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_URI=http://eureka:8761/eureka
       - DATABASE_URL=r2dbc:postgresql://postgres:5432/sigei
-      - DATABASE_USER=sigei
+      - DATABASE_USER=${DB_USER:-sigei}
       - DATABASE_PASSWORD=${DB_PASSWORD:-sigei_dev}
       - RABBITMQ_HOST=rabbitmq
+      - KEYCLOAK_ISSUER_URI=http://keycloak:8080/realms/sigei
     depends_on:
-      - eureka
       - postgres
       - rabbitmq
 
@@ -2192,13 +1611,12 @@ services:
       - "9085:9085"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_URI=http://eureka:8761/eureka
       - DATABASE_URL=r2dbc:postgresql://postgres:5432/sigei
-      - DATABASE_USER=sigei
+      - DATABASE_USER=${DB_USER:-sigei}
       - DATABASE_PASSWORD=${DB_PASSWORD:-sigei_dev}
       - RABBITMQ_HOST=rabbitmq
+      - KEYCLOAK_ISSUER_URI=http://keycloak:8080/realms/sigei
     depends_on:
-      - eureka
       - postgres
       - rabbitmq
 
@@ -2210,13 +1628,12 @@ services:
       - "9086:9086"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_URI=http://eureka:8761/eureka
       - DATABASE_URL=r2dbc:postgresql://postgres:5432/sigei
-      - DATABASE_USER=sigei
+      - DATABASE_USER=${DB_USER:-sigei}
       - DATABASE_PASSWORD=${DB_PASSWORD:-sigei_dev}
       - RABBITMQ_HOST=rabbitmq
+      - KEYCLOAK_ISSUER_URI=http://keycloak:8080/realms/sigei
     depends_on:
-      - eureka
       - postgres
       - rabbitmq
 
@@ -2228,13 +1645,12 @@ services:
       - "9087:9087"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_URI=http://eureka:8761/eureka
       - DATABASE_URL=r2dbc:postgresql://postgres:5432/sigei
-      - DATABASE_USER=sigei
+      - DATABASE_USER=${DB_USER:-sigei}
       - DATABASE_PASSWORD=${DB_PASSWORD:-sigei_dev}
       - RABBITMQ_HOST=rabbitmq
+      - KEYCLOAK_ISSUER_URI=http://keycloak:8080/realms/sigei
     depends_on:
-      - eureka
       - postgres
       - rabbitmq
 
@@ -2246,13 +1662,12 @@ services:
       - "9088:9088"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_URI=http://eureka:8761/eureka
       - DATABASE_URL=r2dbc:postgresql://postgres:5432/sigei
-      - DATABASE_USER=sigei
+      - DATABASE_USER=${DB_USER:-sigei}
       - DATABASE_PASSWORD=${DB_PASSWORD:-sigei_dev}
       - RABBITMQ_HOST=rabbitmq
+      - KEYCLOAK_ISSUER_URI=http://keycloak:8080/realms/sigei
     depends_on:
-      - eureka
       - postgres
       - rabbitmq
 
@@ -2264,13 +1679,12 @@ services:
       - "9089:9089"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_URI=http://eureka:8761/eureka
       - DATABASE_URL=r2dbc:postgresql://postgres:5432/sigei
-      - DATABASE_USER=sigei
+      - DATABASE_USER=${DB_USER:-sigei}
       - DATABASE_PASSWORD=${DB_PASSWORD:-sigei_dev}
       - RABBITMQ_HOST=rabbitmq
+      - KEYCLOAK_ISSUER_URI=http://keycloak:8080/realms/sigei
     depends_on:
-      - eureka
       - postgres
       - rabbitmq
 
@@ -2282,13 +1696,12 @@ services:
       - "9090:9090"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_URI=http://eureka:8761/eureka
       - DATABASE_URL=r2dbc:postgresql://postgres:5432/sigei
-      - DATABASE_USER=sigei
+      - DATABASE_USER=${DB_USER:-sigei}
       - DATABASE_PASSWORD=${DB_PASSWORD:-sigei_dev}
       - RABBITMQ_HOST=rabbitmq
+      - KEYCLOAK_ISSUER_URI=http://keycloak:8080/realms/sigei
     depends_on:
-      - eureka
       - postgres
       - rabbitmq
 
@@ -2300,10 +1713,10 @@ services:
       - "9091:9091"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_URI=http://eureka:8761/eureka
-      - MONGODB_URI=mongodb://sigei:${MONGO_PASSWORD:-sigei_dev}@mongodb:27017/sigei?authSource=admin
+      - MONGODB_URI=mongodb://${MONGO_USER:-sigei}:${MONGO_PASSWORD:-sigei_dev}@mongodb:27017/sigei?authSource=admin
       - RABBITMQ_HOST=rabbitmq
-      # Configuración de proveedores de notificación
+      - KEYCLOAK_ISSUER_URI=http://keycloak:8080/realms/sigei
+      # Proveedores de notificación
       - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
       - SMTP_PORT=${SMTP_PORT:-587}
       - SMTP_USER=${SMTP_USER}
@@ -2312,9 +1725,7 @@ services:
       - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
       - TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER}
       - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
-      - FIREBASE_CREDENTIALS=${FIREBASE_CREDENTIALS}
     depends_on:
-      - eureka
       - mongodb
       - rabbitmq
 
@@ -2328,16 +1739,12 @@ services:
     restart: unless-stopped
     ports:
       - "3000:80"
-    environment:
-      - VITE_API_URL=http://gateway:8080
-      - VITE_KEYCLOAK_URL=http://keycloak:8080
     depends_on:
       - gateway
 
 volumes:
   postgres_data:
   mongodb_data:
-  redis_data:
   rabbitmq_data:
 
 networks:
@@ -2345,158 +1752,22 @@ networks:
     name: sigei-network
 ```
 
-### 14.3 Docker Compose - Producción (VPC)
-
-```yaml
-# docker-compose.prod.yml
-version: '3.8'
-
-# Extender del archivo base
-# Uso: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-
-services:
-  postgres:
-    environment:
-      POSTGRES_PASSWORD: ${DB_PASSWORD}  # Desde .env seguro
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-          cpus: '1'
-
-  mongodb:
-    environment:
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-          cpus: '1'
-
-  rabbitmq:
-    environment:
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: '0.5'
-
-  keycloak:
-    command: start --optimized
-    environment:
-      KC_HTTP_ENABLED: "false"
-      KC_HTTPS_ENABLED: "true"
-      KC_HOSTNAME: auth.sigei.vallegrande.edu.pe
-
-  gateway:
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '0.5'
-      replicas: 2
-
-  # Microservicios con límites de recursos
-  ms-institution:
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '0.3'
-
-  ms-notification:
-    deploy:
-      resources:
-        limits:
-          memory: 768M  # Más memoria para procesar notificaciones
-          cpus: '0.5'
-
-  # Nginx Reverse Proxy para producción
-  nginx:
-    image: nginx:alpine
-    container_name: sigei-nginx
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./infrastructure/nginx/ssl:/etc/nginx/ssl:ro
-      - /var/log/nginx:/var/log/nginx
-    depends_on:
-      - gateway
-      - frontend
-```
-
-### 14.4 Archivo .env de Ejemplo
-
-```bash
-# .env.example - Copiar a .env y configurar valores reales
-
-# ============================================================
-# BASE DE DATOS
-# ============================================================
-DB_PASSWORD=your_secure_postgres_password_here
-MONGO_PASSWORD=your_secure_mongo_password_here
-
-# ============================================================
-# MENSAJERÍA
-# ============================================================
-RABBITMQ_PASSWORD=your_secure_rabbitmq_password_here
-
-# ============================================================
-# KEYCLOAK
-# ============================================================
-KEYCLOAK_PASSWORD=your_secure_keycloak_admin_password
-
-# ============================================================
-# NOTIFICACIONES - EMAIL (Gmail/SendGrid/etc)
-# ============================================================
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=sigei.notificaciones@vallegrande.edu.pe
-SMTP_PASSWORD=your_app_password_here
-
-# ============================================================
-# NOTIFICACIONES - SMS (Twilio)
-# ============================================================
-TWILIO_ACCOUNT_SID=your_twilio_account_sid
-TWILIO_AUTH_TOKEN=your_twilio_auth_token
-TWILIO_PHONE_NUMBER=+1234567890
-
-# ============================================================
-# NOTIFICACIONES - PUSH (Firebase)
-# ============================================================
-FIREBASE_PROJECT_ID=sigei-notifications
-FIREBASE_CREDENTIALS=/path/to/firebase-credentials.json
-
-# ============================================================
-# NOTIFICACIONES - WHATSAPP (Twilio WhatsApp)
-# ============================================================
-TWILIO_WHATSAPP_NUMBER=whatsapp:+14155238886
-```
-
-### 14.5 Dockerfile Estandarizado
+### 14.2 Dockerfile Estandarizado
 
 ```dockerfile
-# Dockerfile para cada microservicio
+# Dockerfile para microservicios
 FROM eclipse-temurin:17-jdk-alpine as builder
 
 WORKDIR /app
 
-# Copiar archivos de Maven
 COPY pom.xml .
 COPY .mvn .mvn
 COPY mvnw .
 
-# Descargar dependencias
 RUN ./mvnw dependency:go-offline
 
-# Copiar código fuente
 COPY src src
 
-# Construir
 RUN ./mvnw package -DskipTests
 
 # Imagen final
@@ -2504,87 +1775,22 @@ FROM eclipse-temurin:17-jre-alpine
 
 WORKDIR /app
 
-# Crear usuario no-root
 RUN addgroup -S spring && adduser -S spring -G spring
 USER spring:spring
 
-# Copiar JAR
 COPY --from=builder /app/target/*.jar app.jar
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=30s \
     CMD wget -q --spider http://localhost:${SERVER_PORT}/actuator/health || exit 1
 
-# Variables de entorno por defecto
 ENV JAVA_OPTS="-Xms256m -Xmx512m"
-ENV SERVER_PORT=8080
 
 EXPOSE ${SERVER_PORT}
 
 ENTRYPOINT ["sh", "-c", "java ${JAVA_OPTS} -jar app.jar"]
 ```
 
-### 14.6 Scripts de Despliegue
-
-```bash
-#!/bin/bash
-# deploy.sh - Script de despliegue para VPC
-
-set -e
-
-echo "=========================================="
-echo "  SIGEI - Despliegue en VPC"
-echo "=========================================="
-
-# Verificar que existe .env
-if [ ! -f .env ]; then
-    echo "ERROR: Archivo .env no encontrado"
-    echo "Copiar .env.example a .env y configurar"
-    exit 1
-fi
-
-# Cargar variables de entorno
-export $(cat .env | grep -v '^#' | xargs)
-
-# Opción de despliegue
-case "$1" in
-    "up")
-        echo "Iniciando servicios..."
-        docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-        ;;
-    "down")
-        echo "Deteniendo servicios..."
-        docker-compose down
-        ;;
-    "restart")
-        echo "Reiniciando servicios..."
-        docker-compose restart
-        ;;
-    "logs")
-        docker-compose logs -f ${2:-}
-        ;;
-    "build")
-        echo "Construyendo imágenes..."
-        docker-compose build --no-cache
-        ;;
-    "status")
-        docker-compose ps
-        ;;
-    "update")
-        echo "Actualizando servicio: $2"
-        docker-compose build --no-cache $2
-        docker-compose up -d --no-deps $2
-        ;;
-    *)
-        echo "Uso: $0 {up|down|restart|logs|build|status|update <servicio>}"
-        exit 1
-        ;;
-esac
-
-echo "Operación completada."
-```
-
-### 14.7 Comandos Útiles
+### 14.3 Comandos de Despliegue
 
 ```bash
 # ============================================================
@@ -2594,44 +1800,41 @@ echo "Operación completada."
 # Iniciar todo
 docker-compose up -d
 
-# Ver logs de todos los servicios
+# Ver logs
 docker-compose logs -f
 
-# Ver logs de un servicio específico
+# Ver logs de un servicio
 docker-compose logs -f ms-notification
 
 # Reconstruir un servicio
-docker-compose build ms-notification
-docker-compose up -d ms-notification
-
-# Entrar a un contenedor
-docker exec -it sigei-notification sh
-
-# Ver estado de RabbitMQ
-# Abrir: http://localhost:15672 (user: sigei, pass: sigei_dev)
-
-# Ver estado de Eureka
-# Abrir: http://localhost:8761
+docker-compose build ms-attendance
+docker-compose up -d ms-attendance
 
 # ============================================================
 # PRODUCCIÓN (VPC)
 # ============================================================
 
-# Despliegue inicial
-./deploy.sh build
-./deploy.sh up
+# Copiar archivos al servidor
+scp -r . user@lab.vallegrande.edu.pe:/opt/sigei/
 
-# Actualizar un microservicio
-./deploy.sh update ms-notification
+# En el servidor
+cd /opt/sigei
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
-# Ver logs en producción
-./deploy.sh logs ms-notification
+# Ver estado
+docker-compose ps
 
-# Monitorear recursos
-docker stats
-
-# Backup de base de datos
+# Backup de PostgreSQL
 docker exec sigei-postgres pg_dump -U sigei sigei > backup_$(date +%Y%m%d).sql
+
+# ============================================================
+# URLS DE ACCESO
+# ============================================================
+# Frontend:     http://localhost:3000
+# Gateway API:  http://localhost:8080
+# Keycloak:     http://localhost:8180
+# RabbitMQ UI:  http://localhost:15672 (sigei/sigei_dev)
+# Swagger:      http://localhost:8080/swagger-ui.html
 ```
 
 ---
@@ -2640,17 +1843,20 @@ docker exec sigei-postgres pg_dump -U sigei sigei > backup_$(date +%Y%m%d).sql
 
 | Decisión | Elección | Justificación |
 |----------|----------|---------------|
-| **Arquitectura** | Microservicios + Hexagonal + DDD | Escalabilidad, mantenibilidad, aislamiento de dominios |
-| **Service Discovery** | Eureka | Integración nativa con Spring Cloud |
-| **API Gateway** | Spring Cloud Gateway | Reactivo, integración con Spring Security |
-| **Identity Provider** | Keycloak | Multi-tenancy, On-premise, Open Source, RBAC completo |
-| **Base de Datos** | PostgreSQL + MongoDB | Relacional para transacciones, NoSQL para flexibilidad |
-| **Mensajería** | RabbitMQ | Colas de mensajes, simple, Dead Letter Queue nativo |
-| **Cache** | Redis | Sesiones, rate limiting, cache distribuido |
-| **Configuración** | Spring Cloud Config | Centralizada, versionada, segura |
-| **Multi-Tenancy** | Discriminator Column | Balance entre aislamiento y costo |
+| **Arquitectura** | Microservicios + Hexagonal + DDD | Modularidad, mantenibilidad |
+| **Comunicación** | REST + RabbitMQ (híbrido) | REST para consultas, RabbitMQ para eventos |
+| **Service Discovery** | Docker DNS (nombres) | Docker Compose resuelve por nombre |
+| **API Gateway** | Spring Cloud Gateway | Punto único de entrada, centraliza seguridad |
+| **Identity Provider** | Keycloak | Multi-tenancy, On-premise, RBAC completo |
+| **Base de Datos** | PostgreSQL + MongoDB | Relacional + Documental según dominio |
+| **Mensajería** | RabbitMQ | Simple, fácil de debuggear, DLQ nativo |
+| **Cache** | ❌ Sin Redis (por ahora) | Simplicidad, se agrega si hay problemas |
+| **Config Server** | ❌ Variables de entorno | Docker Compose es suficiente |
+| **Multi-Tenancy** | Discriminator Column | Balance costo/aislamiento |
+| **Despliegue** | Docker Compose | Adecuado para VPC, sin Kubernetes |
 
 ---
 
-*Documento de Arquitectura v1.0 - Febrero 2026*
+*Documento de Arquitectura v2.0 - Febrero 2026*
 *Sistema SIGEI - Gestión Educativa Inicial*
+*Entorno: VPC lab.vallegrande.edu.pe*
