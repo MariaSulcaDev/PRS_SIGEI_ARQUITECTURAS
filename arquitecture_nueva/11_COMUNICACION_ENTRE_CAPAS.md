@@ -23,7 +23,7 @@
 │            │      (Orquestación)            │               │
 │            ▼                                │               │
 │   ┌───────────────────┐                    │               │
-│   │ Service           │                    │               │
+│   │ UseCaseImpl       │                    │               │
 │   │ (orquesta el      │────────────────────┘               │
 │   │  caso de uso)     │                                    │
 │   └────────┬──────────┘                                    │
@@ -67,23 +67,23 @@ Esto significa:
 PASO 1                    PASO 2                    PASO 3
 ────────────────         ────────────────          ────────────────
 INFRASTRUCTURE           APPLICATION               DOMAIN
-(Adaptador IN)           (Service)                 (Modelo)
+(Adaptador IN)           (UseCaseImpl)             (Modelo)
 
-HTTP Request  ───►  InstitutionController
+HTTP Request  ───►  InstitutionRest
                     │
                     │ Convierte DTO → Domain
                     │ (usando Mapper)
                     ▼
-              CreateInstitutionUseCase  ◄── Puerto de ENTRADA (interface)
+              ICreateInstitutionUseCase ◄── Puerto de ENTRADA (interface)
                     │
-                    │ InstitutionService
+                    │ CreateInstitutionUseCaseImpl
                     │ (implementa el caso de uso)
                     │
                     ├─► Institution.create(...)  ◄── Lógica de dominio
                     │   (valida código modular,     (reglas de negocio)
                     │    nombre, etc.)
                     │
-                    ├─► InstitutionRepository   ◄── Puerto de SALIDA (interface)
+                    ├─► IInstitutionRepository  ◄── Puerto de SALIDA (interface)
                     │   .save(institution)          (definido en dominio)
                     │
               ──────┼──────────────────────────────
@@ -93,16 +93,16 @@ PASO 4              ▼
 INFRASTRUCTURE
 (Adaptador OUT)
 
-InstitutionPersistenceAdapter
-    │ implementa InstitutionRepository
+InstitutionRepositoryImpl
+    │ implementa IInstitutionRepository
     │
-    │ Convierte Domain → Document
+    │ Convierte Domain → Entity
     │ (usando PersistenceMapper)
     ▼
-MongoInstitutionRepository.save(document)
+InstitutionR2dbcRepository.save(entity)
     │
     ▼
- MongoDB / PostgreSQL
+ PostgreSQL
 ```
 
 ---
@@ -112,20 +112,18 @@ MongoInstitutionRepository.save(document)
 ### PASO 1: Controller (Infrastructure → Application)
 
 ```java
-// CAPA: infrastructure/adapter/in/rest/
-// FUNCIÓN: Recibir HTTP, convertir DTO, delegar al servicio
+// CAPA: infrastructure/adapters/in/rest/
+// FUNCIÓN: Recibir HTTP, convertir DTO, delegar al caso de uso
 
 @RestController
 @RequestMapping("/api/institutions")
-public class InstitutionController {
+public class InstitutionRest {
 
-    // ⚡ El controller NO conoce InstitutionService directamente.
-    //    Conoce la INTERFAZ (port) del dominio.
-    private final CreateInstitutionUseCase createUseCase;
+    private final ICreateInstitutionUseCase createUseCase;
     private final InstitutionMapper mapper;
 
-    public InstitutionController(CreateInstitutionUseCase createUseCase,
-                                  InstitutionMapper mapper) {
+    public InstitutionRest(ICreateInstitutionUseCase createUseCase,
+                           InstitutionMapper mapper) {
         this.createUseCase = createUseCase;
         this.mapper = mapper;
     }
@@ -134,13 +132,10 @@ public class InstitutionController {
     public Mono<ResponseEntity<ApiResponse<InstitutionResponse>>> create(
             @Valid @RequestBody CreateInstitutionRequest request) {
 
-        // 1️⃣ Recibir el DTO del request HTTP
-        // 2️⃣ Convertir DTO → Objeto de dominio
         Institution institution = mapper.toDomain(request);
 
-        // 3️⃣ Delegar al CASO DE USO (puerto de entrada)
         return createUseCase.execute(institution)
-            .map(mapper::toResponse)  // 6️⃣ Convertir Domain → Response DTO
+            .map(mapper::toResponse)
             .map(resp -> ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(ApiResponse.created(resp, "Institución creada")));
@@ -148,57 +143,52 @@ public class InstitutionController {
 }
 ```
 
-**¿Qué conoce el Controller?**
+**¿Qué conoce el Controller (Rest)?**
 
-- ✅ `CreateInstitutionUseCase` (interfaz del dominio)
+- ✅ `ICreateInstitutionUseCase` (interfaz del dominio — puerto de entrada)
 - ✅ `CreateInstitutionRequest` / `InstitutionResponse` (DTOs de aplicación)
-- ✅ `ApiResponse` (wrapper de infraestructura)
-- ❌ NO conoce `InstitutionService` (la implementación concreta)
-- ❌ NO conoce `MongoInstitutionRepository` ni `InstitutionDocument`
+- ✅ `ApiResponse` (wrapper en application/dto/common)
+- ❌ NO conoce `CreateInstitutionUseCaseImpl` (la implementación concreta)
+- ❌ NO conoce `InstitutionR2dbcRepository` ni `InstitutionEntity`
 
 ---
 
 ### PASO 2: Puerto de Entrada — Use Case (Dominio define el contrato)
 
 ```java
-// CAPA: domain/port/in/
+// CAPA: domain/ports/in/
 // FUNCIÓN: Definir QUÉ se puede hacer (no CÓMO)
 
-public interface CreateInstitutionUseCase {
+public interface ICreateInstitutionUseCase {
 
-    /**
-     * Crea una nueva institución educativa.
-     * @param institution la entidad de dominio ya construida
-     * @return la institución creada con ID asignado
-     */
     Mono<Institution> execute(Institution institution);
 }
 ```
 
-**¿Por qué es una interfaz?**
+**¿Por qué es una interfaz con prefijo `I`?**
 
 - El dominio dice "necesito poder crear instituciones" (QUÉ)
 - La capa de aplicación decide CÓMO implementarlo
 - El controller solo conoce esta interfaz, no la clase concreta
+- El prefijo `I` hace explícito que es interfaz → `ICreateInstitutionUseCase` → `CreateInstitutionUseCaseImpl`
 
 ---
 
-### PASO 3: Service — Implementa el Use Case (Application)
+### PASO 3: UseCaseImpl — Implementa el Use Case (Application)
 
 ```java
-// CAPA: application/service/
+// CAPA: application/usecases/
 // FUNCIÓN: Orquestar la lógica, coordinar dominio + puertos de salida
+// REGLA: 1 clase = 1 caso de uso (Single Responsibility Principle)
 
 @Service
-public class InstitutionService implements CreateInstitutionUseCase {
+public class CreateInstitutionUseCaseImpl implements ICreateInstitutionUseCase {
 
-    // ⚡ El service conoce los PUERTOS DE SALIDA (interfaces),
-    //    no las implementaciones concretas.
-    private final InstitutionRepository repository;   // ← Puerto de salida (interfaz)
-    private final EventPublisher eventPublisher;       // ← Puerto de salida (interfaz)
+    private final IInstitutionRepository repository;
+    private final IInstitutionEventPublisher eventPublisher;
 
-    public InstitutionService(InstitutionRepository repository,
-                               EventPublisher eventPublisher) {
+    public CreateInstitutionUseCaseImpl(IInstitutionRepository repository,
+                                        IInstitutionEventPublisher eventPublisher) {
         this.repository = repository;
         this.eventPublisher = eventPublisher;
     }
@@ -206,15 +196,12 @@ public class InstitutionService implements CreateInstitutionUseCase {
     @Override
     public Mono<Institution> execute(Institution institution) {
 
-        // 4️⃣ Verificar regla de negocio: no duplicar código modular
         return repository.findByModularCode(institution.getModularCode())
             .flatMap(existing -> Mono.<Institution>error(
                 new DuplicateModularCodeException(institution.getModularCode())))
 
-            // 5️⃣ Guardar usando el puerto de salida
             .switchIfEmpty(repository.save(institution))
 
-            // 5b. Publicar evento de dominio (asíncrono)
             .doOnSuccess(saved ->
                 eventPublisher.publish(new InstitutionCreatedEvent(
                     saved.getId(), saved.getName())));
@@ -222,24 +209,24 @@ public class InstitutionService implements CreateInstitutionUseCase {
 }
 ```
 
-**¿Qué conoce el Service?**
+**¿Qué conoce el UseCaseImpl?**
 
 - ✅ `Institution` (modelo de dominio)
-- ✅ `InstitutionRepository` (interfaz del dominio — puerto de salida)
-- ✅ `EventPublisher` (interfaz del dominio — puerto de salida)
+- ✅ `IInstitutionRepository` (interfaz del dominio — puerto de salida)
+- ✅ `IInstitutionEventPublisher` (interfaz del dominio — puerto de salida)
 - ✅ Excepciones de dominio (`DuplicateModularCodeException`)
-- ❌ NO conoce `MongoInstitutionRepository`, `InstitutionDocument`, ni `@Document`
-- ❌ NO conoce `InstitutionController`, `ApiResponse`, ni HTTP
+- ❌ NO conoce `InstitutionR2dbcRepository`, `InstitutionEntity`, ni `@Table`
+- ❌ NO conoce `InstitutionRest`, `ApiResponse`, ni HTTP
 
 ---
 
 ### PASO 4: Puerto de Salida — Repository (Dominio define el contrato)
 
 ```java
-// CAPA: domain/port/out/
+// CAPA: domain/ports/out/
 // FUNCIÓN: Definir QUÉ necesita el dominio de persistencia (no CÓMO)
 
-public interface InstitutionRepository {
+public interface IInstitutionRepository {
 
     Mono<Institution> save(Institution institution);
     Mono<Institution> findById(String id);
@@ -260,67 +247,62 @@ public interface InstitutionRepository {
 ### PASO 5: Adaptador de Persistencia (Infrastructure implementa el puerto)
 
 ```java
-// CAPA: infrastructure/adapter/out/persistence/
+// CAPA: infrastructure/adapters/out/persistence/
 // FUNCIÓN: Implementar el puerto de salida usando tecnología concreta
 
 @Component
-public class InstitutionPersistenceAdapter implements InstitutionRepository {
+public class InstitutionRepositoryImpl implements IInstitutionRepository {
 
-    // ⚡ Aquí SÍ hay dependencias de tecnología (Spring Data, MongoDB/R2DBC)
-    private final MongoInstitutionRepository mongoRepository;
+    private final InstitutionR2dbcRepository r2dbcRepository;
     private final InstitutionPersistenceMapper mapper;
 
-    public InstitutionPersistenceAdapter(
-            MongoInstitutionRepository mongoRepository,
+    public InstitutionRepositoryImpl(
+            InstitutionR2dbcRepository r2dbcRepository,
             InstitutionPersistenceMapper mapper) {
-        this.mongoRepository = mongoRepository;
+        this.r2dbcRepository = r2dbcRepository;
         this.mapper = mapper;
     }
 
     @Override
     public Mono<Institution> save(Institution institution) {
-        // Convertir Domain → Document (entidad de persistencia)
-        InstitutionDocument document = mapper.toDocument(institution);
-
-        // Guardar usando Spring Data
-        return mongoRepository.save(document)
-            // Convertir Document → Domain
+        InstitutionEntity entity = mapper.toEntity(institution);
+        return r2dbcRepository.save(entity)
             .map(mapper::toDomain);
     }
 
     @Override
     public Mono<Institution> findById(String id) {
-        return mongoRepository.findById(id)
+        return r2dbcRepository.findById(id)
             .map(mapper::toDomain);
     }
 
     @Override
     public Mono<Institution> findByModularCode(String modularCode) {
-        return mongoRepository.findByModularCode(modularCode)
+        return r2dbcRepository.findByModularCode(modularCode)
             .map(mapper::toDomain);
     }
 
     @Override
     public Flux<Institution> findAll() {
-        return mongoRepository.findAll()
+        return r2dbcRepository.findAll()
             .map(mapper::toDomain);
     }
 
     @Override
     public Mono<Void> deleteById(String id) {
-        return mongoRepository.deleteById(id);
+        return r2dbcRepository.deleteById(id);
     }
 }
 ```
 
-**¿Qué conoce el Adapter?**
+**¿Qué conoce el RepositoryImpl?**
 
-- ✅ `InstitutionRepository` (interfaz del dominio que implementa)
+- ✅ `IInstitutionRepository` (interfaz del dominio que implementa)
 - ✅ `Institution` (modelo del dominio)
-- ✅ `MongoInstitutionRepository` (Spring Data — tecnología)
-- ✅ `InstitutionDocument` (entidad con `@Document` — tecnología)
-- ✅ `InstitutionPersistenceMapper` (convierte Domain ↔ Document)
-- ❌ NO conoce al Service ni al Controller
+- ✅ `InstitutionR2dbcRepository` (Spring Data R2DBC — tecnología)
+- ✅ `InstitutionEntity` (entidad con `@Table` — tecnología)
+- ✅ `InstitutionPersistenceMapper` (convierte Domain ↔ Entity)
+- ❌ NO conoce al UseCaseImpl ni al Controller
 
 ---
 
@@ -329,24 +311,24 @@ public class InstitutionPersistenceAdapter implements InstitutionRepository {
 ```
 ┌──────────────────────────────────────────────────────────────────┐
 │                                                                  │
-│  InstitutionController                                          │
-│  ├── import CreateInstitutionUseCase  ←── (domain/port/in)      │
-│  ├── import InstitutionMapper         ←── (application/mapper)   │
+│  InstitutionRest                                                │
+│  ├── import ICreateInstitutionUseCase ←── (domain/ports/in)      │
+│  ├── import InstitutionMapper         ←── (application/mappers)  │
 │  ├── import CreateInstitutionRequest  ←── (application/dto)      │
 │  ├── import InstitutionResponse       ←── (application/dto)      │
-│  └── import ApiResponse               ←── (infrastructure)       │
+│  └── import ApiResponse               ←── (application/dto/common)│
 │                                                                  │
-│  InstitutionService                                              │
-│  ├── import CreateInstitutionUseCase  ←── (domain/port/in)      │
-│  ├── import InstitutionRepository     ←── (domain/port/out)     │
-│  ├── import Institution               ←── (domain/model)         │
-│  └── import DuplicateModularCodeEx.   ←── (domain/exception)    │
+│  CreateInstitutionUseCaseImpl                                    │
+│  ├── import ICreateInstitutionUseCase ←── (domain/ports/in)      │
+│  ├── import IInstitutionRepository    ←── (domain/ports/out)     │
+│  ├── import Institution               ←── (domain/models)        │
+│  └── import DuplicateModularCodeEx.   ←── (domain/exceptions)    │
 │                                                                  │
-│  InstitutionPersistenceAdapter                                   │
-│  ├── import InstitutionRepository     ←── (domain/port/out)     │
-│  ├── import Institution               ←── (domain/model)         │
-│  ├── import InstitutionDocument       ←── (infrastructure)       │
-│  └── import MongoInstitutionRepo      ←── (infrastructure)       │
+│  InstitutionRepositoryImpl                                       │
+│  ├── import IInstitutionRepository    ←── (domain/ports/out)     │
+│  ├── import Institution               ←── (domain/models)        │
+│  ├── import InstitutionEntity         ←── (infrastructure)       │
+│  └── import InstitutionR2dbcRepo      ←── (infrastructure)       │
 │                                                                  │
 │  Institution (DOMINIO)                                           │
 │  └── import NADA externo              ←── (0 dependencias)      │
@@ -356,9 +338,9 @@ public class InstitutionPersistenceAdapter implements InstitutionRepository {
 
 **Observa:**
 
-- `Institution.java` NO importa nada de Spring, MongoDB, ni R2DBC.
-- `InstitutionService` solo importa interfaces (ports) y modelos del dominio.
-- Solo `InstitutionPersistenceAdapter` importa cosas de MongoDB/Spring Data.
+- `Institution.java` NO importa nada de Spring, R2DBC, ni PostgreSQL.
+- `CreateInstitutionUseCaseImpl` solo importa interfaces (ports) y modelos del dominio.
+- Solo `InstitutionRepositoryImpl` importa cosas de R2DBC/Spring Data.
 
 ---
 
@@ -369,16 +351,16 @@ Spring Boot conecta todo automáticamente gracias a `@Component`, `@Service`, et
 ```
 Spring IoC Container:
 │
-├── Busca: ¿Quién implementa CreateInstitutionUseCase?
-│   └── Encuentra: InstitutionService (@Service)
-│       └── Inyecta en InstitutionController
+├── Busca: ¿Quién implementa ICreateInstitutionUseCase?
+│   └── Encuentra: CreateInstitutionUseCaseImpl (@Service)
+│       └── Inyecta en InstitutionRest
 │
-├── Busca: ¿Quién implementa InstitutionRepository?
-│   └── Encuentra: InstitutionPersistenceAdapter (@Component)
-│       └── Inyecta en InstitutionService
+├── Busca: ¿Quién implementa IInstitutionRepository?
+│   └── Encuentra: InstitutionRepositoryImpl (@Component)
+│       └── Inyecta en CreateInstitutionUseCaseImpl
 │
 └── Resultado:
-    Controller → Service → PersistenceAdapter
+    Rest → UseCaseImpl → RepositoryImpl
     (pero cada uno SOLO conoce la INTERFAZ del anterior)
 ```
 

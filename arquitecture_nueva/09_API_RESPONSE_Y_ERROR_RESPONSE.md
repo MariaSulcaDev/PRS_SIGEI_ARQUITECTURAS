@@ -82,16 +82,22 @@ GET /api/enrollments/10
 
 ```
 src/main/java/pe/edu/vallegrande/sigei/<ms>/
+├── application/
+│   └── dto/
+│       ├── common/
+│       │   ├── ApiResponse.java               ← Wrapper de respuestas exitosas
+│       │   └── ErrorResponse.java             ← Wrapper de respuestas de error
+│       ├── request/
+│       │   └── CreateXxxRequest.java
+│       └── response/
+│           └── XxxResponse.java
 ├── infrastructure/
-│   ├── adapter/in/rest/
-│   │   ├── XxxController.java
-│   │   └── GlobalExceptionHandler.java    ← Usa ErrorResponse
-│   └── common/
-│       ├── ApiResponse.java               ← Wrapper de respuestas exitosas
-│       └── ErrorResponse.java             ← Wrapper de respuestas de error
+│   └── adapters/in/rest/
+│       ├── XxxRest.java
+│       └── GlobalExceptionHandler.java        ← Usa ErrorResponse
 ```
 
-> **Nota:** `ApiResponse` y `ErrorResponse` viven en `infrastructure.common` porque son DTOs de la capa de infraestructura (adaptador REST). El dominio NO los conoce.
+> **Nota:** `ApiResponse` y `ErrorResponse` viven en `application.dto.common` porque son DTOs de respuesta de la API, agrupados con los demás DTOs. El dominio NO los conoce. El controller (infraestructura) los importa desde application.
 
 ---
 
@@ -100,7 +106,7 @@ src/main/java/pe/edu/vallegrande/sigei/<ms>/
 ### 1. ApiResponse\<T\> — Wrapper genérico de éxito
 
 ```java
-package pe.edu.vallegrande.sigei.shared.infrastructure.common;
+package pe.edu.vallegrande.sigei.<modulo>.application.dto.common;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.time.LocalDateTime;
@@ -169,7 +175,7 @@ public class ApiResponse<T> {
 ### 2. ErrorResponse — Wrapper de errores
 
 ```java
-package pe.edu.vallegrande.sigei.shared.infrastructure.common;
+package pe.edu.vallegrande.sigei.<modulo>.application.dto.common;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.time.LocalDateTime;
@@ -262,7 +268,7 @@ public class ErrorResponse {
 ## 🔧 GLOBAL EXCEPTION HANDLER — Centraliza el manejo de errores
 
 ```java
-package pe.edu.vallegrande.sigei.shared.infrastructure.adapter.in.rest;
+package pe.edu.vallegrande.sigei.<modulo>.infrastructure.adapters.in.rest;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -274,7 +280,7 @@ import org.springframework.web.bind.support.WebExchangeBindException;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
-import pe.edu.vallegrande.sigei.shared.infrastructure.common.ErrorResponse;
+import pe.edu.vallegrande.sigei.<modulo>.application.dto.common.ErrorResponse;
 
 import java.util.List;
 
@@ -397,7 +403,8 @@ Cada microservicio define sus excepciones que extienden de estas bases:
 
 ```java
 // ─── Excepción base: Recurso no encontrado ───
-package pe.edu.vallegrande.sigei.shared.domain.exception;
+// Cada MS tiene sus propias excepciones base en domain/exceptions/
+package pe.edu.vallegrande.sigei.<modulo>.domain.exceptions;
 
 public class ResourceNotFoundException extends RuntimeException {
     private final String resourceName;
@@ -417,7 +424,7 @@ public class ResourceNotFoundException extends RuntimeException {
 }
 
 // ─── Excepción base: Conflicto de negocio ───
-package pe.edu.vallegrande.sigei.shared.domain.exception;
+package pe.edu.vallegrande.sigei.<modulo>.domain.exceptions;
 
 public class BusinessConflictException extends RuntimeException {
     private final String errorCode;

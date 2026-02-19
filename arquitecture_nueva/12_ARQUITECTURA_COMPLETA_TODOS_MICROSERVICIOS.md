@@ -40,89 +40,99 @@
 src/main/java/pe/edu/vallegrande/sigei/<modulo>/
 │
 ├── domain/                           ← CAPA DE DOMINIO (pura, sin frameworks)
-│   ├── model/                        ← Entidades y agregados
-│   │   ├── XxxEntity.java           ← Entidad raíz (POJO puro, SIN @Table/@Document)
-│   │   └── enums/                   ← Enumeraciones del dominio
-│   │       └── XxxStatus.java
-│   ├── port/                         ← Puertos (interfaces)
+│   ├── models/                       ← Entidades y agregados
+│   │   ├── Xxx.java                 ← Entidad raíz (POJO puro, SIN @Table/@Document)
+│   │   └── valueobjects/            ← Enumeraciones y Value Objects
+│   │       ├── XxxStatus.java       ← Enum ACTIVE/INACTIVE
+│   │       └── XxxRole.java         ← Otras enumeraciones
+│   ├── ports/                        ← Puertos (interfaces con prefijo I)
 │   │   ├── in/                      ← Puertos de ENTRADA (casos de uso)
-│   │   │   ├── CreateXxxUseCase.java
-│   │   │   ├── FindXxxUseCase.java
-│   │   │   └── UpdateXxxUseCase.java
+│   │   │   ├── ICreateXxxUseCase.java
+│   │   │   ├── IGetXxxUseCase.java
+│   │   │   ├── IUpdateXxxUseCase.java
+│   │   │   ├── IDeleteXxxUseCase.java
+│   │   │   └── IRestoreXxxUseCase.java
 │   │   └── out/                     ← Puertos de SALIDA (repositorios, eventos)
-│   │       ├── XxxRepository.java   ← Interfaz pura (NO Spring Data)
-│   │       └── EventPublisher.java  ← Interfaz para eventos RabbitMQ
-│   ├── exception/                    ← Excepciones de dominio
-│   │   ├── XxxNotFoundException.java         extends ResourceNotFoundException
-│   │   └── DuplicateXxxException.java        extends BusinessConflictException
+│   │       ├── IXxxRepository.java  ← Interfaz pura (NO Spring Data)
+│   │       └── IXxxEventPublisher.java ← Interfaz para eventos RabbitMQ
+│   ├── exceptions/                   ← Excepciones de dominio
+│   │   ├── DomainException.java              ← Base abstracta
+│   │   ├── NotFoundException.java            ← Base para 404
+│   │   ├── ConflictException.java            ← Base para 409
+│   │   ├── XxxNotFoundException.java         extends NotFoundException
+│   │   └── DuplicateXxxException.java        extends ConflictException
 │   │
-│   └── event/                        ← Eventos de dominio (publicados a RabbitMQ)
-│       └── XxxCreatedEvent.java      [record] → se publica al crear/actualizar
+│   └── services/                     ← Servicios de dominio (opcional, lógica pura)
+│       └── XxxDomainService.java
 │
 ├── application/                      ← CAPA DE APLICACIÓN (orquestación)
-│   ├── service/                     ← Implementación de casos de uso
-│   │   └── XxxService.java         ← implements CreateXxxUseCase, FindXxxUseCase...
+│   ├── usecases/                    ← Implementación de casos de uso (1 clase = 1 caso)
+│   │   ├── CreateXxxUseCaseImpl.java
+│   │   ├── GetXxxUseCaseImpl.java
+│   │   ├── UpdateXxxUseCaseImpl.java
+│   │   ├── DeleteXxxUseCaseImpl.java
+│   │   └── RestoreXxxUseCaseImpl.java
 │   ├── dto/                         ← DTOs de entrada/salida
+│   │   ├── common/                  ← Wrappers de respuesta API
+│   │   │   ├── ApiResponse.java
+│   │   │   └── ErrorResponse.java
 │   │   ├── request/
 │   │   │   ├── CreateXxxRequest.java
 │   │   │   └── UpdateXxxRequest.java
 │   │   └── response/
 │   │       ├── XxxResponse.java
 │   │       └── XxxDetailResponse.java
-│   └── mapper/                      ← Mappers DTO ↔ Domain
+│   ├── events/                      ← Eventos de integración (RabbitMQ)
+│   │   ├── XxxCreatedEvent.java     [record]
+│   │   ├── XxxUpdatedEvent.java     [record]
+│   │   ├── XxxDeletedEvent.java     [record]
+│   │   └── XxxRestoredEvent.java    [record]
+│   └── mappers/                     ← Mappers DTO ↔ Domain
 │       └── XxxMapper.java
 │
 ├── infrastructure/                   ← CAPA DE INFRAESTRUCTURA (frameworks/tecnología)
-│   ├── adapter/
+│   ├── adapters/
 │   │   ├── in/
-│   │   │   └── rest/               ← Adaptadores de ENTRADA (controllers HTTP)
-│   │   │       ├── XxxController.java
+│   │   │   └── rest/               ← Adaptadores de ENTRADA
+│   │   │       ├── XxxRest.java    ← Controller REST
 │   │   │       └── GlobalExceptionHandler.java
 │   │   └── out/
-│   │       ├── persistence/        ← Adaptadores de SALIDA (base de datos)
-│   │       │   ├── entity/
-│   │       │   │   └── XxxEntity.java          ← @Table("xxx") — entidad R2DBC
-│   │       │   ├── mapper/
-│   │       │   │   └── XxxPersistenceMapper.java
-│   │       │   ├── repository/
-│   │       │   │   └── R2dbcXxxRepository.java ← extends ReactiveCrudRepository
-│   │       │   └── XxxPersistenceAdapter.java  ← implements domain XxxRepository
-│   │       └── messaging/          ← Adaptadores de SALIDA (RabbitMQ)
-│   │           └── RabbitEventPublisher.java   ← implements domain EventPublisher
-│   ├── client/                     ← WebClient a otros MS (comunicación síncrona)
-│   │   └── XxxClient.java
-│   ├── common/                     ← Clases compartidas de infra
-│   │   ├── ApiResponse.java
-│   │   └── ErrorResponse.java
-│   └── config/                     ← Configuración de Spring
-│       ├── R2dbcConfig.java
-│       ├── SecurityConfig.java
-│       ├── RabbitMQConfig.java
-│       └── WebClientConfig.java
-│
-├── shared/                          ← Código compartido dentro del MS
-│   └── domain/
-│       └── exception/
-│           ├── ResourceNotFoundException.java
-│           └── BusinessConflictException.java
+│   │       ├── persistence/        ← Adaptador de persistencia
+│   │       │   └── XxxRepositoryImpl.java  ← implements IXxxRepository
+│   │       ├── external/           ← Clientes HTTP a otros MS
+│   │       │   └── XxxClientImpl.java
+│   │       └── messaging/          ← Adaptadores de mensajería (RabbitMQ)
+│   │           └── XxxEventPublisherImpl.java ← implements IXxxEventPublisher
+│   ├── config/                     ← Configuración de Spring
+│   │   ├── R2dbcConfig.java
+│   │   ├── SecurityConfig.java
+│   │   ├── RabbitMQConfig.java
+│   │   └── WebClientConfig.java
+│   ├── persistence/                ← Entidades y repos de BD (separados del adapter)
+│   │   ├── entities/
+│   │   │   └── XxxEntity.java      ← @Table("xxx") — entidad R2DBC
+│   │   └── repositories/
+│   │       └── XxxR2dbcRepository.java ← extends ReactiveCrudRepository
+│   └── security/                   ← Seguridad (opcional)
+│       └── SecurityContextAdapter.java
 │
 └── XxxApplication.java              ← @SpringBootApplication
 │
 src/main/resources/
 ├── application.yml                  ← Configuración base
 ├── application-dev.yml              ← Perfil desarrollo
-├── application-vpc.yml              ← Perfil producción VPC
+├── application-prod.yml             ← Perfil producción
 └── db/migration/                    ← Migraciones Flyway
     ├── V1__create_xxx_table.sql
-    └── V2__add_xxx_column.sql
+    └── V2__add_xxx_indexes.sql
 │
 src/test/java/pe/edu/vallegrande/sigei/<modulo>/
-├── domain/model/                    ← Tests unitarios del dominio
+├── domain/models/                   ← Tests unitarios del dominio
 │   └── XxxTest.java
-├── application/service/             ← Tests del servicio
-│   └── XxxServiceTest.java
-└── infrastructure/adapter/in/rest/  ← Tests de integración
-    └── XxxControllerTest.java
+├── application/usecases/            ← Tests de casos de uso
+│   └── CreateXxxUseCaseImplTest.java
+└── infrastructure/adapters/in/rest/ ← Tests de integración
+    └── XxxRestTest.java
 ```
 
 ---
@@ -140,7 +150,7 @@ src/test/java/pe/edu/vallegrande/sigei/<modulo>/
 src/main/java/pe/edu/vallegrande/sigei/institution/
 │
 ├── domain/
-│   ├── model/
+│   ├── models/
 │   │   ├── Institution.java
 │   │   │   ├── id: String
 │   │   │   ├── modularCode: String              ← Código modular UGEL (7 dígitos)
@@ -184,40 +194,52 @@ src/main/java/pe/edu/vallegrande/sigei/institution/
 │   │   │   ├── startTime: LocalTime
 │   │   │   └── endTime: LocalTime
 │   │   │
-│   │   └── enums/
+│   │   └── valueobjects/
 │   │       ├── InstitutionStatus.java            ← ACTIVE, INACTIVE
 │   │       └── ClassroomStatus.java              ← ACTIVE, INACTIVE
 │   │
-│   ├── port/
+│   ├── ports/
 │   │   ├── in/
-│   │   │   ├── CreateInstitutionUseCase.java
-│   │   │   ├── FindInstitutionUseCase.java
-│   │   │   ├── UpdateInstitutionUseCase.java
-│   │   │   ├── CreateClassroomUseCase.java
-│   │   │   ├── FindClassroomUseCase.java
-│   │   │   └── UpdateClassroomUseCase.java
+│   │   │   ├── ICreateInstitutionUseCase.java
+│   │   │   ├── IGetInstitutionUseCase.java
+│   │   │   ├── IUpdateInstitutionUseCase.java
+│   │   │   ├── IDeleteInstitutionUseCase.java
+│   │   │   ├── IRestoreInstitutionUseCase.java
+│   │   │   ├── ICreateClassroomUseCase.java
+│   │   │   ├── IGetClassroomUseCase.java
+│   │   │   ├── IUpdateClassroomUseCase.java
+│   │   │   ├── IDeleteClassroomUseCase.java
+│   │   │   └── IRestoreClassroomUseCase.java
 │   │   └── out/
-│   │       ├── InstitutionRepository.java
-│   │       ├── ClassroomRepository.java
-│   │       └── InstitutionEventPublisher.java
+│   │       ├── IInstitutionRepository.java
+│   │       ├── IClassroomRepository.java
+│   │       └── IInstitutionEventPublisher.java
 │   │
-│   ├── exception/
-│   │   ├── InstitutionNotFoundException.java
-│   │   ├── ClassroomNotFoundException.java
-│   │   ├── DuplicateModularCodeException.java
-│   │   └── ClassroomCapacityException.java
-│   │
-│   └── event/                        ← Eventos publicados a RabbitMQ
-│       ├── InstitutionCreatedEvent.java       [record] institutionId, name, modularCode
-│       ├── InstitutionUpdatedEvent.java       [record] institutionId, fieldsChanged
-│       ├── ClassroomCreatedEvent.java         [record] classroomId, institutionId, classroomName, ageGroup
-│       └── AnnouncementCreatedEvent.java      [record] institutionId, title, message, targetAudience
+│   └── exceptions/
+│       ├── DomainException.java
+│       ├── NotFoundException.java
+│       ├── ConflictException.java
+│       ├── InstitutionNotFoundException.java
+│       ├── ClassroomNotFoundException.java
+│       ├── DuplicateModularCodeException.java
+│       └── ClassroomCapacityException.java
 │
 ├── application/
-│   ├── service/
-│   │   ├── InstitutionService.java
-│   │   └── ClassroomService.java
+│   ├── usecases/
+│   │   ├── CreateInstitutionUseCaseImpl.java
+│   │   ├── GetInstitutionUseCaseImpl.java
+│   │   ├── UpdateInstitutionUseCaseImpl.java
+│   │   ├── DeleteInstitutionUseCaseImpl.java
+│   │   ├── RestoreInstitutionUseCaseImpl.java
+│   │   ├── CreateClassroomUseCaseImpl.java
+│   │   ├── GetClassroomUseCaseImpl.java
+│   │   ├── UpdateClassroomUseCaseImpl.java
+│   │   ├── DeleteClassroomUseCaseImpl.java
+│   │   └── RestoreClassroomUseCaseImpl.java
 │   ├── dto/
+│   │   ├── common/
+│   │   │   ├── ApiResponse.java
+│   │   │   └── ErrorResponse.java
 │   │   ├── request/
 │   │   │   ├── CreateInstitutionRequest.java
 │   │   │   ├── UpdateInstitutionRequest.java
@@ -227,14 +249,19 @@ src/main/java/pe/edu/vallegrande/sigei/institution/
 │   │       ├── InstitutionResponse.java
 │   │       ├── InstitutionDetailResponse.java    ← con classrooms incluidos
 │   │       └── ClassroomResponse.java
-│   └── mapper/
+│   ├── events/
+│   │   ├── InstitutionCreatedEvent.java       [record] institutionId, name, modularCode
+│   │   ├── InstitutionUpdatedEvent.java       [record] institutionId, fieldsChanged
+│   │   ├── ClassroomCreatedEvent.java         [record] classroomId, institutionId, classroomName, ageGroup
+│   │   └── AnnouncementCreatedEvent.java      [record] institutionId, title, message, targetAudience
+│   └── mappers/
 │       ├── InstitutionMapper.java
 │       └── ClassroomMapper.java
 │
 ├── infrastructure/
-│   ├── adapter/
+│   ├── adapters/
 │   │   ├── in/rest/
-│   │   │   ├── InstitutionController.java
+│   │   │   ├── InstitutionRest.java
 │   │   │   │   ├── GET    /api/v1/institutions
 │   │   │   │   ├── GET    /api/v1/institutions/active
 │   │   │   │   ├── GET    /api/v1/institutions/inactive
@@ -245,7 +272,7 @@ src/main/java/pe/edu/vallegrande/sigei/institution/
 │   │   │   │   ├── DELETE /api/v1/institutions/{id}
 │   │   │   │   └── PATCH  /api/v1/institutions/{id}/restore
 │   │   │   │
-│   │   │   ├── ClassroomController.java
+│   │   │   ├── ClassroomRest.java
 │   │   │   │   ├── GET    /api/v1/classrooms
 │   │   │   │   ├── GET    /api/v1/classrooms/active
 │   │   │   │   ├── GET    /api/v1/classrooms/inactive
@@ -260,23 +287,22 @@ src/main/java/pe/edu/vallegrande/sigei/institution/
 │   │   │
 │   │   └── out/
 │   │       ├── persistence/
-│   │       │   ├── entity/
-│   │       │   │   ├── InstitutionEntity.java    ← @Table("institutions")
-│   │       │   │   └── ClassroomEntity.java      ← @Table("classrooms")
-│   │       │   ├── mapper/
-│   │       │   │   ├── InstitutionPersistenceMapper.java
-│   │       │   │   └── ClassroomPersistenceMapper.java
-│   │       │   ├── repository/
-│   │       │   │   ├── R2dbcInstitutionRepository.java
-│   │       │   │   └── R2dbcClassroomRepository.java
-│   │       │   ├── InstitutionPersistenceAdapter.java
-│   │       │   └── ClassroomPersistenceAdapter.java
+│   │       │   ├── InstitutionRepositoryImpl.java
+│   │       │   └── ClassroomRepositoryImpl.java
 │   │       └── messaging/
-│   │           └── RabbitInstitutionEventPublisher.java
+│   │           └── InstitutionEventPublisherImpl.java
 │   │
-│   ├── common/
-│   │   ├── ApiResponse.java
-│   │   └── ErrorResponse.java
+│   ├── persistence/
+│   │   ├── entities/
+│   │   │   ├── InstitutionEntity.java            ← @Table("institutions")
+│   │   │   └── ClassroomEntity.java              ← @Table("classrooms")
+│   │   ├── mappers/
+│   │   │   ├── InstitutionPersistenceMapper.java
+│   │   │   └── ClassroomPersistenceMapper.java
+│   │   └── repositories/
+│   │       ├── InstitutionR2dbcRepository.java
+│   │       └── ClassroomR2dbcRepository.java
+│   │
 │   └── config/
 │       ├── R2dbcConfig.java
 │       ├── SecurityConfig.java
@@ -306,7 +332,7 @@ src/main/resources/
 src/main/java/pe/edu/vallegrande/sigei/students/
 │
 ├── domain/
-│   ├── model/
+│   ├── models/
 │   │   ├── Student.java
 │   │   │   ├── id: String
 │   │   │   ├── cui: String                       ← Código Único de Identidad
@@ -361,35 +387,48 @@ src/main/java/pe/edu/vallegrande/sigei/students/
 │   │   │   ├── whatsapp: String
 │   │   │   └── email: String
 │   │   │
-│   │   └── enums/
+│   │   └── valueobjects/
 │   │       └── StudentStatus.java                ← ACTIVE, INACTIVE, TRANSFERRED
 │   │
-│   ├── port/
+│   ├── ports/
 │   │   ├── in/
-│   │   │   ├── CreateStudentUseCase.java
-│   │   │   ├── FindStudentUseCase.java
-│   │   │   ├── UpdateStudentUseCase.java
-│   │   │   └── ManageGuardianUseCase.java
+│   │   │   ├── ICreateStudentUseCase.java
+│   │   │   ├── IGetStudentUseCase.java
+│   │   │   ├── IUpdateStudentUseCase.java
+│   │   │   ├── IDeleteStudentUseCase.java
+│   │   │   ├── IRestoreStudentUseCase.java
+│   │   │   ├── ICreateGuardianUseCase.java
+│   │   │   ├── IGetGuardianUseCase.java
+│   │   │   ├── IUpdateGuardianUseCase.java
+│   │   │   └── IDeleteGuardianUseCase.java
 │   │   └── out/
-│   │       ├── StudentRepository.java
-│   │       ├── GuardianRepository.java
-│   │       └── StudentEventPublisher.java
+│   │       ├── IStudentRepository.java
+│   │       ├── IGuardianRepository.java
+│   │       └── IStudentEventPublisher.java
 │   │
-│   ├── exception/
-│   │   ├── StudentNotFoundException.java
-│   │   ├── GuardianNotFoundException.java
-│   │   └── DuplicateCuiException.java
-│   │
-│   └── event/                        ← Eventos publicados a RabbitMQ
-│       ├── StudentCreatedEvent.java           [record] studentId, institutionId, classroomId, fullName
-│       ├── StudentUpdatedEvent.java           [record] studentId, fieldsChanged
-│       └── GuardianAddedEvent.java            [record] guardianId, studentId, phone, relationship
+│   └── exceptions/
+│       ├── DomainException.java
+│       ├── NotFoundException.java
+│       ├── ConflictException.java
+│       ├── StudentNotFoundException.java
+│       ├── GuardianNotFoundException.java
+│       └── DuplicateCuiException.java
 │
 ├── application/
-│   ├── service/
-│   │   ├── StudentService.java
-│   │   └── GuardianService.java
+│   ├── usecases/
+│   │   ├── CreateStudentUseCaseImpl.java
+│   │   ├── GetStudentUseCaseImpl.java
+│   │   ├── UpdateStudentUseCaseImpl.java
+│   │   ├── DeleteStudentUseCaseImpl.java
+│   │   ├── RestoreStudentUseCaseImpl.java
+│   │   ├── CreateGuardianUseCaseImpl.java
+│   │   ├── GetGuardianUseCaseImpl.java
+│   │   ├── UpdateGuardianUseCaseImpl.java
+│   │   └── DeleteGuardianUseCaseImpl.java
 │   ├── dto/
+│   │   ├── common/
+│   │   │   ├── ApiResponse.java
+│   │   │   └── ErrorResponse.java
 │   │   ├── request/
 │   │   │   ├── CreateStudentRequest.java
 │   │   │   ├── UpdateStudentRequest.java
@@ -399,14 +438,18 @@ src/main/java/pe/edu/vallegrande/sigei/students/
 │   │       ├── StudentResponse.java
 │   │       ├── StudentDetailResponse.java        ← con guardians y salud
 │   │       └── GuardianResponse.java
-│   └── mapper/
+│   ├── events/
+│   │   ├── StudentCreatedEvent.java           [record] studentId, institutionId, classroomId, fullName
+│   │   ├── StudentUpdatedEvent.java           [record] studentId, fieldsChanged
+│   │   └── GuardianAddedEvent.java            [record] guardianId, studentId, phone, relationship
+│   └── mappers/
 │       ├── StudentMapper.java
 │       └── GuardianMapper.java
 │
 ├── infrastructure/
-│   ├── adapter/
+│   ├── adapters/
 │   │   ├── in/rest/
-│   │   │   ├── StudentController.java
+│   │   │   ├── StudentRest.java
 │   │   │   │   ├── GET    /api/v1/students
 │   │   │   │   ├── GET    /api/v1/students/active
 │   │   │   │   ├── GET    /api/v1/students/{id}
@@ -419,7 +462,7 @@ src/main/java/pe/edu/vallegrande/sigei/students/
 │   │   │   │   ├── DELETE /api/v1/students/{id}
 │   │   │   │   └── PATCH  /api/v1/students/{id}/restore
 │   │   │   │
-│   │   │   ├── GuardianController.java
+│   │   │   ├── GuardianRest.java
 │   │   │   │   ├── GET    /api/v1/guardians/student/{studentId}
 │   │   │   │   ├── GET    /api/v1/guardians/{id}
 │   │   │   │   ├── POST   /api/v1/guardians
@@ -430,26 +473,25 @@ src/main/java/pe/edu/vallegrande/sigei/students/
 │   │   │
 │   │   └── out/
 │   │       ├── persistence/
-│   │       │   ├── entity/
-│   │       │   │   ├── StudentEntity.java        ← @Table("students")
-│   │       │   │   └── GuardianEntity.java       ← @Table("guardians")
-│   │       │   ├── mapper/
-│   │       │   │   ├── StudentPersistenceMapper.java
-│   │       │   │   └── GuardianPersistenceMapper.java
-│   │       │   ├── repository/
-│   │       │   │   ├── R2dbcStudentRepository.java
-│   │       │   │   └── R2dbcGuardianRepository.java
-│   │       │   ├── StudentPersistenceAdapter.java
-│   │       │   └── GuardianPersistenceAdapter.java
+│   │       │   ├── StudentRepositoryImpl.java
+│   │       │   └── GuardianRepositoryImpl.java
+│   │       ├── external/
+│   │       │   ├── InstitutionClientImpl.java     ← WebClient → MS Institution
+│   │       │   └── ClassroomClientImpl.java
 │   │       └── messaging/
-│   │           └── RabbitStudentEventPublisher.java
+│   │           └── StudentEventPublisherImpl.java
 │   │
-│   ├── client/
-│   │   ├── InstitutionClient.java                ← WebClient → MS Institution
-│   │   └── ClassroomClient.java
-│   ├── common/
-│   │   ├── ApiResponse.java
-│   │   └── ErrorResponse.java
+│   ├── persistence/
+│   │   ├── entities/
+│   │   │   ├── StudentEntity.java                ← @Table("students")
+│   │   │   └── GuardianEntity.java               ← @Table("guardians")
+│   │   ├── mappers/
+│   │   │   ├── StudentPersistenceMapper.java
+│   │   │   └── GuardianPersistenceMapper.java
+│   │   └── repositories/
+│   │       ├── StudentR2dbcRepository.java
+│   │       └── GuardianR2dbcRepository.java
+│   │
 │   └── config/
 │       ├── R2dbcConfig.java
 │       ├── SecurityConfig.java
@@ -479,7 +521,7 @@ src/main/resources/
 src/main/java/pe/edu/vallegrande/sigei/enrollments/
 │
 ├── domain/
-│   ├── model/
+│   ├── models/
 │   │   ├── Enrollment.java
 │   │   │   ├── id: String
 │   │   │   ├── studentId: String
@@ -524,40 +566,55 @@ src/main/java/pe/edu/vallegrande/sigei/enrollments/
 │   │   │   ├── psychologicalReport: boolean
 │   │   │   └── studentPhoto: boolean
 │   │   │
-│   │   └── enums/
+│   │   └── valueobjects/
 │   │       ├── EnrollmentStatus.java             ← PENDING, ACTIVE, CANCELLED, COMPLETED
 │   │       ├── EnrollmentType.java               ← NUEVO, REINGRESO, TRASLADO
 │   │       └── PeriodStatus.java                 ← PLANNING, OPEN, CLOSED
 │   │
-│   ├── port/
+│   ├── ports/
 │   │   ├── in/
-│   │   │   ├── CreateEnrollmentUseCase.java
-│   │   │   ├── FindEnrollmentUseCase.java
-│   │   │   ├── UpdateEnrollmentStatusUseCase.java
-│   │   │   ├── ValidateEnrollmentUseCase.java
-│   │   │   ├── CreateAcademicPeriodUseCase.java
-│   │   │   └── FindAcademicPeriodUseCase.java
+│   │   │   ├── ICreateEnrollmentUseCase.java
+│   │   │   ├── IGetEnrollmentUseCase.java
+│   │   │   ├── IUpdateEnrollmentStatusUseCase.java
+│   │   │   ├── IValidateEnrollmentUseCase.java
+│   │   │   ├── IDeleteEnrollmentUseCase.java
+│   │   │   ├── IRestoreEnrollmentUseCase.java
+│   │   │   ├── ICreateAcademicPeriodUseCase.java
+│   │   │   ├── IGetAcademicPeriodUseCase.java
+│   │   │   ├── IUpdateAcademicPeriodUseCase.java
+│   │   │   ├── IDeleteAcademicPeriodUseCase.java
+│   │   │   └── IRestoreAcademicPeriodUseCase.java
 │   │   └── out/
-│   │       ├── EnrollmentRepository.java
-│   │       ├── AcademicPeriodRepository.java
-│   │       └── EnrollmentEventPublisher.java
+│   │       ├── IEnrollmentRepository.java
+│   │       ├── IAcademicPeriodRepository.java
+│   │       └── IEnrollmentEventPublisher.java
 │   │
-│   ├── exception/
-│   │   ├── EnrollmentNotFoundException.java
-│   │   ├── AcademicPeriodNotFoundException.java
-│   │   ├── DuplicateEnrollmentException.java
-│   │   └── EnrollmentPeriodClosedException.java
-│   │
-│   └── event/                        ← Eventos publicados a RabbitMQ
-│       ├── EnrollmentConfirmedEvent.java      [record] enrollmentId, studentId, institutionId, classroomId, academicYear
-│       ├── EnrollmentCancelledEvent.java      [record] enrollmentId, studentId, reason
-│       └── AcademicPeriodOpenedEvent.java     [record] periodId, institutionId, academicYear, startDate, endDate
+│   └── exceptions/
+│       ├── DomainException.java
+│       ├── NotFoundException.java
+│       ├── ConflictException.java
+│       ├── EnrollmentNotFoundException.java
+│       ├── AcademicPeriodNotFoundException.java
+│       ├── DuplicateEnrollmentException.java
+│       └── EnrollmentPeriodClosedException.java
 │
 ├── application/
-│   ├── service/
-│   │   ├── EnrollmentService.java
-│   │   └── AcademicPeriodService.java
+│   ├── usecases/
+│   │   ├── CreateEnrollmentUseCaseImpl.java
+│   │   ├── GetEnrollmentUseCaseImpl.java
+│   │   ├── UpdateEnrollmentUseCaseImpl.java
+│   │   ├── DeleteEnrollmentUseCaseImpl.java
+│   │   ├── RestoreEnrollmentUseCaseImpl.java
+│   │   ├── ValidateEnrollmentUseCaseImpl.java
+│   │   ├── CreateAcademicPeriodUseCaseImpl.java
+│   │   ├── GetAcademicPeriodUseCaseImpl.java
+│   │   ├── UpdateAcademicPeriodUseCaseImpl.java
+│   │   ├── DeleteAcademicPeriodUseCaseImpl.java
+│   │   └── RestoreAcademicPeriodUseCaseImpl.java
 │   ├── dto/
+│   │   ├── common/
+│   │   │   ├── ApiResponse.java
+│   │   │   └── ErrorResponse.java
 │   │   ├── request/
 │   │   │   ├── CreateEnrollmentRequest.java
 │   │   │   ├── UpdateEnrollmentRequest.java
@@ -568,14 +625,18 @@ src/main/java/pe/edu/vallegrande/sigei/enrollments/
 │   │       ├── EnrollmentDetailResponse.java     ← con datos de student e institution
 │   │       ├── AcademicPeriodResponse.java
 │   │       └── EnrollmentStatisticsResponse.java
-│   └── mapper/
+│   ├── events/
+│   │   ├── EnrollmentConfirmedEvent.java      [record] enrollmentId, studentId, institutionId, classroomId, academicYear
+│   │   ├── EnrollmentCancelledEvent.java      [record] enrollmentId, studentId, reason
+│   │   └── AcademicPeriodOpenedEvent.java     [record] periodId, institutionId, academicYear, startDate, endDate
+│   └── mappers/
 │       ├── EnrollmentMapper.java
 │       └── AcademicPeriodMapper.java
 │
 ├── infrastructure/
-│   ├── adapter/
+│   ├── adapters/
 │   │   ├── in/rest/
-│   │   │   ├── EnrollmentController.java
+│   │   │   ├── EnrollmentRest.java
 │   │   │   │   ├── POST   /api/v1/enrollments
 │   │   │   │   ├── GET    /api/v1/enrollments
 │   │   │   │   ├── GET    /api/v1/enrollments/{id}
@@ -589,7 +650,7 @@ src/main/java/pe/edu/vallegrande/sigei/enrollments/
 │   │   │   │   ├── DELETE /api/v1/enrollments/{id}
 │   │   │   │   └── PATCH  /api/v1/enrollments/{id}/restore
 │   │   │   │
-│   │   │   ├── AcademicPeriodController.java
+│   │   │   ├── AcademicPeriodRest.java
 │   │   │   │   ├── POST   /api/v1/academic-periods
 │   │   │   │   ├── GET    /api/v1/academic-periods
 │   │   │   │   ├── GET    /api/v1/academic-periods/{id}
@@ -603,27 +664,26 @@ src/main/java/pe/edu/vallegrande/sigei/enrollments/
 │   │   │
 │   │   └── out/
 │   │       ├── persistence/
-│   │       │   ├── entity/
-│   │       │   │   ├── EnrollmentEntity.java     ← @Table("enrollments")
-│   │       │   │   └── AcademicPeriodEntity.java ← @Table("academic_periods")
-│   │       │   ├── mapper/
-│   │       │   │   ├── EnrollmentPersistenceMapper.java
-│   │       │   │   └── AcademicPeriodPersistenceMapper.java
-│   │       │   ├── repository/
-│   │       │   │   ├── R2dbcEnrollmentRepository.java
-│   │       │   │   └── R2dbcAcademicPeriodRepository.java
-│   │       │   ├── EnrollmentPersistenceAdapter.java
-│   │       │   └── AcademicPeriodPersistenceAdapter.java
+│   │       │   ├── EnrollmentRepositoryImpl.java
+│   │       │   └── AcademicPeriodRepositoryImpl.java
+│   │       ├── external/
+│   │       │   ├── InstitutionClientImpl.java
+│   │       │   ├── StudentClientImpl.java
+│   │       │   └── ClassroomClientImpl.java
 │   │       └── messaging/
-│   │           └── RabbitEnrollmentEventPublisher.java
+│   │           └── EnrollmentEventPublisherImpl.java
 │   │
-│   ├── client/
-│   │   ├── InstitutionClient.java
-│   │   ├── StudentClient.java
-│   │   └── ClassroomClient.java
-│   ├── common/
-│   │   ├── ApiResponse.java
-│   │   └── ErrorResponse.java
+│   ├── persistence/
+│   │   ├── entities/
+│   │   │   ├── EnrollmentEntity.java             ← @Table("enrollments")
+│   │   │   └── AcademicPeriodEntity.java         ← @Table("academic_periods")
+│   │   ├── mappers/
+│   │   │   ├── EnrollmentPersistenceMapper.java
+│   │   │   └── AcademicPeriodPersistenceMapper.java
+│   │   └── repositories/
+│   │       ├── EnrollmentR2dbcRepository.java
+│   │       └── AcademicPeriodR2dbcRepository.java
+│   │
 │   └── config/
 │       ├── R2dbcConfig.java
 │       ├── SecurityConfig.java
@@ -653,7 +713,7 @@ src/main/resources/
 src/main/java/pe/edu/vallegrande/sigei/users/
 │
 ├── domain/
-│   ├── model/
+│   ├── models/
 │   │   ├── User.java
 │   │   │   ├── id: String
 │   │   │   ├── institutionId: String
@@ -670,44 +730,55 @@ src/main/java/pe/edu/vallegrande/sigei/users/
 │   │   │   ├── createdAt: LocalDateTime
 │   │   │   └── updatedAt: LocalDateTime
 │   │   │
-│   │   └── enums/
+│   │   └── valueobjects/
 │   │       ├── UserRole.java                     ← DIRECTOR, SUBDIRECTOR, DOCENTE,
 │   │       │                                        AUXILIAR, PSICOLOGO, SECRETARIA, APODERADO
 │   │       └── UserStatus.java                   ← ACTIVE, INACTIVE
 │   │
-│   ├── port/
+│   ├── ports/
 │   │   ├── in/
-│   │   │   ├── CreateUserUseCase.java
-│   │   │   ├── FindUserUseCase.java
-│   │   │   └── UpdateUserUseCase.java
+│   │   │   ├── ICreateUserUseCase.java
+│   │   │   ├── IGetUserUseCase.java
+│   │   │   ├── IUpdateUserUseCase.java
+│   │   │   ├── IDeleteUserUseCase.java
+│   │   │   └── IRestoreUserUseCase.java
 │   │   └── out/
-│   │       ├── UserRepository.java
-│   │       └── UserEventPublisher.java
+│   │       ├── IUserRepository.java
+│   │       └── IUserEventPublisher.java
 │   │
-│   ├── exception/
-│   │   ├── UserNotFoundException.java
-│   │   └── DuplicateDocumentNumberException.java
-│   │
-│   └── event/                        ← Eventos publicados a RabbitMQ
-│       ├── UserCreatedEvent.java              [record] userId, institutionId, role, fullName
-│       └── UserDeactivatedEvent.java          [record] userId, institutionId, reason
+│   └── exceptions/
+│       ├── DomainException.java
+│       ├── NotFoundException.java
+│       ├── ConflictException.java
+│       ├── UserNotFoundException.java
+│       └── DuplicateDocumentNumberException.java
 │
 ├── application/
-│   ├── service/
-│   │   └── UserService.java
+│   ├── usecases/
+│   │   ├── CreateUserUseCaseImpl.java
+│   │   ├── GetUserUseCaseImpl.java
+│   │   ├── UpdateUserUseCaseImpl.java
+│   │   ├── DeleteUserUseCaseImpl.java
+│   │   └── RestoreUserUseCaseImpl.java
 │   ├── dto/
+│   │   ├── common/
+│   │   │   ├── ApiResponse.java
+│   │   │   └── ErrorResponse.java
 │   │   ├── request/
 │   │   │   ├── CreateUserRequest.java
 │   │   │   └── UpdateUserRequest.java
 │   │   └── response/
 │   │       └── UserResponse.java
-│   └── mapper/
+│   ├── events/
+│   │   ├── UserCreatedEvent.java              [record] userId, institutionId, role, fullName
+│   │   └── UserDeactivatedEvent.java          [record] userId, institutionId, reason
+│   └── mappers/
 │       └── UserMapper.java
 │
 ├── infrastructure/
-│   ├── adapter/
+│   ├── adapters/
 │   │   ├── in/rest/
-│   │   │   ├── UserController.java
+│   │   │   ├── UserRest.java
 │   │   │   │   ├── GET    /api/v1/users
 │   │   │   │   ├── GET    /api/v1/users/{id}
 │   │   │   │   ├── GET    /api/v1/users/status/{status}
@@ -722,21 +793,20 @@ src/main/java/pe/edu/vallegrande/sigei/users/
 │   │   │
 │   │   └── out/
 │   │       ├── persistence/
-│   │       │   ├── entity/
-│   │       │   │   └── UserEntity.java           ← @Table("users")
-│   │       │   ├── mapper/
-│   │       │   │   └── UserPersistenceMapper.java
-│   │       │   ├── repository/
-│   │       │   │   └── R2dbcUserRepository.java
-│   │       │   └── UserPersistenceAdapter.java
+│   │       │   └── UserRepositoryImpl.java
+│   │       ├── external/
+│   │       │   └── InstitutionClientImpl.java
 │   │       └── messaging/
-│   │           └── RabbitUserEventPublisher.java
+│   │           └── UserEventPublisherImpl.java
 │   │
-│   ├── client/
-│   │   └── InstitutionClient.java
-│   ├── common/
-│   │   ├── ApiResponse.java
-│   │   └── ErrorResponse.java
+│   ├── persistence/
+│   │   ├── entities/
+│   │   │   └── UserEntity.java                   ← @Table("users")
+│   │   ├── mappers/
+│   │   │   └── UserPersistenceMapper.java
+│   │   └── repositories/
+│   │       └── UserR2dbcRepository.java
+│   │
 │   └── config/
 │       ├── R2dbcConfig.java
 │       ├── SecurityConfig.java
@@ -765,7 +835,7 @@ src/main/resources/
 src/main/java/pe/edu/vallegrande/sigei/academic/
 │
 ├── domain/
-│   ├── model/
+│   ├── models/
 │   │   ├── Course.java
 │   │   │   ├── id: UUID
 │   │   │   ├── institutionId: String
@@ -819,36 +889,70 @@ src/main/java/pe/edu/vallegrande/sigei/academic/
 │   │       ├── course: Course
 │   │       └── competencies: List<CompetencyWithCapacities>
 │   │
-│   ├── port/
+│   ├── ports/
 │   │   ├── in/
-│   │   │   ├── ManageCourseUseCase.java
-│   │   │   ├── ManageCompetencyUseCase.java
-│   │   │   ├── ManageCapacityUseCase.java
-│   │   │   ├── ManagePerformanceUseCase.java
-│   │   │   └── RegisterCatalogUseCase.java
+│   │   │   ├── ICreateCourseUseCase.java
+│   │   │   ├── IGetCourseUseCase.java
+│   │   │   ├── IUpdateCourseUseCase.java
+│   │   │   ├── IDeleteCourseUseCase.java
+│   │   │   ├── IRestoreCourseUseCase.java
+│   │   │   ├── ICreateCompetencyUseCase.java
+│   │   │   ├── IGetCompetencyUseCase.java
+│   │   │   ├── IUpdateCompetencyUseCase.java
+│   │   │   ├── IDeleteCompetencyUseCase.java
+│   │   │   ├── IRestoreCompetencyUseCase.java
+│   │   │   ├── ICreateCapacityUseCase.java
+│   │   │   ├── IGetCapacityUseCase.java
+│   │   │   ├── IUpdateCapacityUseCase.java
+│   │   │   ├── IDeleteCapacityUseCase.java
+│   │   │   ├── IRestoreCapacityUseCase.java
+│   │   │   ├── ICreatePerformanceUseCase.java
+│   │   │   ├── IGetPerformanceUseCase.java
+│   │   │   ├── IUpdatePerformanceUseCase.java
+│   │   │   ├── IDeletePerformanceUseCase.java
+│   │   │   ├── IRestorePerformanceUseCase.java
+│   │   │   └── IRegisterCatalogUseCase.java
 │   │   └── out/
-│   │       ├── CourseRepository.java
-│   │       ├── CompetencyRepository.java
-│   │       ├── CapacityRepository.java
-│   │       └── PerformanceRepository.java
+│   │       ├── ICourseRepository.java
+│   │       ├── ICompetencyRepository.java
+│   │       ├── ICapacityRepository.java
+│   │       └── IPerformanceRepository.java
 │   │
-│   ├── exception/
-│   │   ├── CourseNotFoundException.java
-│   │   ├── CompetencyNotFoundException.java
-│   │   └── DuplicateCourseCodeException.java
-│   │
-│   └── event/                        ← Eventos publicados a RabbitMQ
-│       ├── CatalogRegisteredEvent.java        [record] institutionId, courseId, courseName, competencyCount
-│       └── CatalogUpdatedEvent.java           [record] institutionId, courseId, changes
+│   └── exceptions/
+│       ├── DomainException.java
+│       ├── NotFoundException.java
+│       ├── ConflictException.java
+│       ├── CourseNotFoundException.java
+│       ├── CompetencyNotFoundException.java
+│       └── DuplicateCourseCodeException.java
 │
 ├── application/
-│   ├── service/
-│   │   ├── CourseService.java
-│   │   ├── CompetencyService.java
-│   │   ├── CapacityService.java
-│   │   ├── PerformanceService.java
-│   │   └── CatalogService.java
+│   ├── usecases/
+│   │   ├── CreateCourseUseCaseImpl.java
+│   │   ├── GetCourseUseCaseImpl.java
+│   │   ├── UpdateCourseUseCaseImpl.java
+│   │   ├── DeleteCourseUseCaseImpl.java
+│   │   ├── RestoreCourseUseCaseImpl.java
+│   │   ├── CreateCompetencyUseCaseImpl.java
+│   │   ├── GetCompetencyUseCaseImpl.java
+│   │   ├── UpdateCompetencyUseCaseImpl.java
+│   │   ├── DeleteCompetencyUseCaseImpl.java
+│   │   ├── RestoreCompetencyUseCaseImpl.java
+│   │   ├── CreateCapacityUseCaseImpl.java
+│   │   ├── GetCapacityUseCaseImpl.java
+│   │   ├── UpdateCapacityUseCaseImpl.java
+│   │   ├── DeleteCapacityUseCaseImpl.java
+│   │   ├── RestoreCapacityUseCaseImpl.java
+│   │   ├── CreatePerformanceUseCaseImpl.java
+│   │   ├── GetPerformanceUseCaseImpl.java
+│   │   ├── UpdatePerformanceUseCaseImpl.java
+│   │   ├── DeletePerformanceUseCaseImpl.java
+│   │   ├── RestorePerformanceUseCaseImpl.java
+│   │   └── RegisterCatalogUseCaseImpl.java
 │   ├── dto/
+│   │   ├── common/
+│   │   │   ├── ApiResponse.java
+│   │   │   └── ErrorResponse.java
 │   │   ├── request/
 │   │   │   ├── CreateCourseRequest.java
 │   │   │   ├── UpdateCourseRequest.java
@@ -862,16 +966,19 @@ src/main/java/pe/edu/vallegrande/sigei/academic/
 │   │       ├── CapacityResponse.java
 │   │       ├── PerformanceResponse.java
 │   │       └── CatalogDetailResponse.java
-│   └── mapper/
+│   ├── events/
+│   │   ├── CatalogRegisteredEvent.java        [record] institutionId, courseId, courseName, competencyCount
+│   │   └── CatalogUpdatedEvent.java           [record] institutionId, courseId, changes
+│   └── mappers/
 │       ├── CourseMapper.java
 │       ├── CompetencyMapper.java
 │       ├── CapacityMapper.java
 │       └── PerformanceMapper.java
 │
 ├── infrastructure/
-│   ├── adapter/
+│   ├── adapters/
 │   │   ├── in/rest/
-│   │   │   ├── CourseController.java
+│   │   │   ├── CourseRest.java
 │   │   │   │   ├── GET    /api/v1/courses
 │   │   │   │   ├── GET    /api/v1/courses/{id}
 │   │   │   │   ├── GET    /api/v1/courses/institution/{institutionId}
@@ -880,7 +987,7 @@ src/main/java/pe/edu/vallegrande/sigei/academic/
 │   │   │   │   ├── DELETE /api/v1/courses/{id}
 │   │   │   │   └── PATCH  /api/v1/courses/{id}/restore
 │   │   │   │
-│   │   │   ├── CompetencyController.java
+│   │   │   ├── CompetencyRest.java
 │   │   │   │   ├── GET    /api/v1/competencies
 │   │   │   │   ├── GET    /api/v1/competencies/{id}
 │   │   │   │   ├── GET    /api/v1/competencies/course/{courseId}
@@ -889,7 +996,7 @@ src/main/java/pe/edu/vallegrande/sigei/academic/
 │   │   │   │   ├── DELETE /api/v1/competencies/{id}
 │   │   │   │   └── PATCH  /api/v1/competencies/{id}/restore
 │   │   │   │
-│   │   │   ├── CapacityController.java
+│   │   │   ├── CapacityRest.java
 │   │   │   │   ├── GET    /api/v1/capacities
 │   │   │   │   ├── GET    /api/v1/capacities/{id}
 │   │   │   │   ├── GET    /api/v1/capacities/competency/{competencyId}
@@ -898,7 +1005,7 @@ src/main/java/pe/edu/vallegrande/sigei/academic/
 │   │   │   │   ├── DELETE /api/v1/capacities/{id}
 │   │   │   │   └── PATCH  /api/v1/capacities/{id}/restore
 │   │   │   │
-│   │   │   ├── PerformanceController.java
+│   │   │   ├── PerformanceRest.java
 │   │   │   │   ├── GET    /api/v1/performances
 │   │   │   │   ├── GET    /api/v1/performances/{id}
 │   │   │   │   ├── GET    /api/v1/performances/capacity/{capacityId}
@@ -907,7 +1014,7 @@ src/main/java/pe/edu/vallegrande/sigei/academic/
 │   │   │   │   ├── DELETE /api/v1/performances/{id}
 │   │   │   │   └── PATCH  /api/v1/performances/{id}/restore
 │   │   │   │
-│   │   │   ├── CatalogController.java
+│   │   │   ├── CatalogRest.java
 │   │   │   │   ├── POST   /api/v1/catalog/register
 │   │   │   │   ├── PUT    /api/v1/catalog/update
 │   │   │   │   ├── GET    /api/v1/catalog/{institutionId}
@@ -916,32 +1023,32 @@ src/main/java/pe/edu/vallegrande/sigei/academic/
 │   │   │   │
 │   │   │   └── GlobalExceptionHandler.java
 │   │   │
-│   │   └── out/persistence/
-│   │       ├── entity/
-│   │       │   ├── CourseEntity.java             ← @Table("courses")
-│   │       │   ├── CompetencyEntity.java         ← @Table("competencies")
-│   │       │   ├── CapacityEntity.java           ← @Table("capacities")
-│   │       │   └── PerformanceEntity.java        ← @Table("performances")
-│   │       ├── mapper/
-│   │       │   ├── CoursePersistenceMapper.java
-│   │       │   ├── CompetencyPersistenceMapper.java
-│   │       │   ├── CapacityPersistenceMapper.java
-│   │       │   └── PerformancePersistenceMapper.java
-│   │       ├── repository/
-│   │       │   ├── R2dbcCourseRepository.java
-│   │       │   ├── R2dbcCompetencyRepository.java
-│   │       │   ├── R2dbcCapacityRepository.java
-│   │       │   └── R2dbcPerformanceRepository.java
-│   │       ├── CoursePersistenceAdapter.java
-│   │       ├── CompetencyPersistenceAdapter.java
-│   │       ├── CapacityPersistenceAdapter.java
-│   │       └── PerformancePersistenceAdapter.java
+│   │   └── out/
+│   │       ├── persistence/
+│   │       │   ├── CourseRepositoryImpl.java
+│   │       │   ├── CompetencyRepositoryImpl.java
+│   │       │   ├── CapacityRepositoryImpl.java
+│   │       │   └── PerformanceRepositoryImpl.java
+│   │       └── external/
+│   │           └── InstitutionClientImpl.java
 │   │
-│   ├── client/
-│   │   └── InstitutionClient.java
-│   ├── common/
-│   │   ├── ApiResponse.java
-│   │   └── ErrorResponse.java
+│   ├── persistence/
+│   │   ├── entities/
+│   │   │   ├── CourseEntity.java                 ← @Table("courses")
+│   │   │   ├── CompetencyEntity.java             ← @Table("competencies")
+│   │   │   ├── CapacityEntity.java               ← @Table("capacities")
+│   │   │   └── PerformanceEntity.java            ← @Table("performances")
+│   │   ├── mappers/
+│   │   │   ├── CoursePersistenceMapper.java
+│   │   │   ├── CompetencyPersistenceMapper.java
+│   │   │   ├── CapacityPersistenceMapper.java
+│   │   │   └── PerformancePersistenceMapper.java
+│   │   └── repositories/
+│   │       ├── CourseR2dbcRepository.java
+│   │       ├── CompetencyR2dbcRepository.java
+│   │       ├── CapacityR2dbcRepository.java
+│   │       └── PerformanceR2dbcRepository.java
+│   │
 │   └── config/
 │       ├── R2dbcConfig.java
 │       ├── SecurityConfig.java
@@ -971,7 +1078,7 @@ src/main/resources/
 src/main/java/pe/edu/vallegrande/sigei/civicDates/
 │
 ├── domain/
-│   ├── model/
+│   ├── models/
 │   │   ├── Event.java
 │   │   │   ├── id: Long
 │   │   │   ├── institutionId: String
@@ -1004,31 +1111,45 @@ src/main/java/pe/edu/vallegrande/sigei/civicDates/
 │   │   │   ├── eventId: Long
 │   │   │   └── createdAt: LocalDateTime
 │   │   │
-│   │   └── enums/
+│   │   └── valueobjects/
 │   │       └── EventStatus.java                  ← ACTIVE, INACTIVE
 │   │
-│   ├── port/
+│   ├── ports/
 │   │   ├── in/
-│   │   │   ├── ManageEventUseCase.java
-│   │   │   └── ManageCalendarUseCase.java
+│   │   │   ├── ICreateEventUseCase.java
+│   │   │   ├── IGetEventUseCase.java
+│   │   │   ├── IUpdateEventUseCase.java
+│   │   │   ├── IDeleteEventUseCase.java
+│   │   │   ├── IRestoreEventUseCase.java
+│   │   │   ├── ICreateCalendarUseCase.java
+│   │   │   ├── IGetCalendarUseCase.java
+│   │   │   └── IUpdateCalendarUseCase.java
 │   │   └── out/
-│   │       ├── EventRepository.java
-│   │       ├── AcademicCalendarRepository.java
-│   │       └── EventCalendarRepository.java
+│   │       ├── IEventRepository.java
+│   │       ├── IAcademicCalendarRepository.java
+│   │       └── IEventCalendarRepository.java
 │   │
-│   ├── exception/
-│   │   ├── EventNotFoundException.java
-│   │   └── CalendarNotFoundException.java
-│   │
-│   └── event/                        ← Eventos publicados a RabbitMQ
-│       ├── CivicEventCreatedEvent.java        [record] eventId, institutionId, title, startDate, isHoliday
-│       └── EventReminderEvent.java            [record] eventId, institutionId, title, daysUntilEvent
+│   └── exceptions/
+│       ├── DomainException.java
+│       ├── NotFoundException.java
+│       ├── ConflictException.java
+│       ├── EventNotFoundException.java
+│       └── CalendarNotFoundException.java
 │
 ├── application/
-│   ├── service/
-│   │   ├── EventService.java
-│   │   └── CalendarService.java
+│   ├── usecases/
+│   │   ├── CreateEventUseCaseImpl.java
+│   │   ├── GetEventUseCaseImpl.java
+│   │   ├── UpdateEventUseCaseImpl.java
+│   │   ├── DeleteEventUseCaseImpl.java
+│   │   ├── RestoreEventUseCaseImpl.java
+│   │   ├── CreateCalendarUseCaseImpl.java
+│   │   ├── GetCalendarUseCaseImpl.java
+│   │   └── UpdateCalendarUseCaseImpl.java
 │   ├── dto/
+│   │   ├── common/
+│   │   │   ├── ApiResponse.java
+│   │   │   └── ErrorResponse.java
 │   │   ├── request/
 │   │   │   ├── CreateEventRequest.java
 │   │   │   ├── UpdateEventRequest.java
@@ -1038,14 +1159,17 @@ src/main/java/pe/edu/vallegrande/sigei/civicDates/
 │   │       ├── EventResponse.java
 │   │       ├── CalendarResponse.java
 │   │       └── CalendarWithEventsResponse.java
-│   └── mapper/
+│   ├── events/
+│   │   ├── CivicEventCreatedEvent.java        [record] eventId, institutionId, title, startDate, isHoliday
+│   │   └── EventReminderEvent.java            [record] eventId, institutionId, title, daysUntilEvent
+│   └── mappers/
 │       ├── EventMapper.java
 │       └── CalendarMapper.java
 │
 ├── infrastructure/
-│   ├── adapter/
+│   ├── adapters/
 │   │   ├── in/rest/
-│   │   │   ├── EventController.java
+│   │   │   ├── EventRest.java
 │   │   │   │   ├── GET    /api/v1/events
 │   │   │   │   ├── GET    /api/v1/events/{id}
 │   │   │   │   ├── GET    /api/v1/events/institution/{institutionId}
@@ -1055,7 +1179,7 @@ src/main/java/pe/edu/vallegrande/sigei/civicDates/
 │   │   │   │   ├── DELETE /api/v1/events/{id}
 │   │   │   │   └── PATCH  /api/v1/events/{id}/restore
 │   │   │   │
-│   │   │   ├── CalendarController.java
+│   │   │   ├── CalendarRest.java
 │   │   │   │   ├── GET    /api/v1/calendars
 │   │   │   │   ├── GET    /api/v1/calendars/{id}
 │   │   │   │   ├── GET    /api/v1/calendars/institution/{institutionId}
@@ -1066,26 +1190,26 @@ src/main/java/pe/edu/vallegrande/sigei/civicDates/
 │   │   │   │
 │   │   │   └── GlobalExceptionHandler.java
 │   │   │
-│   │   └── out/persistence/
-│   │       ├── entity/
-│   │       │   ├── EventEntity.java              ← @Table("events")
-│   │       │   ├── AcademicCalendarEntity.java   ← @Table("academic_calendar")
-│   │       │   └── EventCalendarEntity.java      ← @Table("event_calendar")
-│   │       ├── mapper/
-│   │       │   ├── EventPersistenceMapper.java
-│   │       │   └── CalendarPersistenceMapper.java
-│   │       ├── repository/
-│   │       │   ├── R2dbcEventRepository.java
-│   │       │   ├── R2dbcCalendarRepository.java
-│   │       │   └── R2dbcEventCalendarRepository.java
-│   │       ├── EventPersistenceAdapter.java
-│   │       └── CalendarPersistenceAdapter.java
+│   │   └── out/
+│   │       ├── persistence/
+│   │       │   ├── EventRepositoryImpl.java
+│   │       │   └── CalendarRepositoryImpl.java
+│   │       └── external/
+│   │           └── InstitutionClientImpl.java
 │   │
-│   ├── client/
-│   │   └── InstitutionClient.java
-│   ├── common/
-│   │   ├── ApiResponse.java
-│   │   └── ErrorResponse.java
+│   ├── persistence/
+│   │   ├── entities/
+│   │   │   ├── EventEntity.java                  ← @Table("events")
+│   │   │   ├── AcademicCalendarEntity.java       ← @Table("academic_calendar")
+│   │   │   └── EventCalendarEntity.java          ← @Table("event_calendar")
+│   │   ├── mappers/
+│   │   │   ├── EventPersistenceMapper.java
+│   │   │   └── CalendarPersistenceMapper.java
+│   │   └── repositories/
+│   │       ├── EventR2dbcRepository.java
+│   │       ├── CalendarR2dbcRepository.java
+│   │       └── EventCalendarR2dbcRepository.java
+│   │
 │   └── config/
 │       ├── R2dbcConfig.java
 │       ├── SecurityConfig.java
@@ -1114,7 +1238,7 @@ src/main/resources/
 src/main/java/pe/edu/vallegrande/sigei/notes/
 │
 ├── domain/
-│   ├── model/
+│   ├── models/
 │   │   ├── StudentEvaluation.java
 │   │   │   ├── id: UUID
 │   │   │   ├── studentId: String
@@ -1156,35 +1280,47 @@ src/main/java/pe/edu/vallegrande/sigei/notes/
 │   │   │   ├── approvedBy: UUID
 │   │   │   └── approvedAt: LocalDateTime
 │   │   │
-│   │   └── enums/
+│   │   └── valueobjects/
 │   │       ├── AchievementLevel.java             ← AD, A, B, C
 │   │       └── ReportCardStatus.java             ← DRAFT, APPROVED, PUBLISHED
 │   │
-│   ├── port/
+│   ├── ports/
 │   │   ├── in/
-│   │   │   ├── ManageEvaluationUseCase.java
-│   │   │   ├── FindEvaluationUseCase.java
-│   │   │   ├── ManageReportCardUseCase.java
-│   │   │   └── FindReportCardUseCase.java
+│   │   │   ├── ICreateEvaluationUseCase.java
+│   │   │   ├── IGetEvaluationUseCase.java
+│   │   │   ├── IUpdateEvaluationUseCase.java
+│   │   │   ├── IDeleteEvaluationUseCase.java
+│   │   │   ├── ICreateReportCardUseCase.java
+│   │   │   ├── IGetReportCardUseCase.java
+│   │   │   ├── IUpdateReportCardUseCase.java
+│   │   │   └── IDeleteReportCardUseCase.java
 │   │   └── out/
-│   │       ├── StudentEvaluationRepository.java
-│   │       ├── ReportCardRepository.java
-│   │       └── NotesEventPublisher.java
+│   │       ├── IStudentEvaluationRepository.java
+│   │       ├── IReportCardRepository.java
+│   │       └── INotesEventPublisher.java
 │   │
-│   ├── exception/
-│   │   ├── EvaluationNotFoundException.java
-│   │   ├── ReportCardNotFoundException.java
-│   │   └── GradeOutOfRangeException.java
-│   │
-│   └── event/                        ← Eventos publicados a RabbitMQ
-│       ├── EvaluationRegisteredEvent.java     [record] evaluationId, studentId, courseId, achievementLevel
-│       └── ReportCardPublishedEvent.java      [record] reportCardId, studentId, institutionId, classroomId, academicYear, periodNumber
+│   └── exceptions/
+│       ├── DomainException.java
+│       ├── NotFoundException.java
+│       ├── ConflictException.java
+│       ├── EvaluationNotFoundException.java
+│       ├── ReportCardNotFoundException.java
+│       └── GradeOutOfRangeException.java
 │
 ├── application/
-│   ├── service/
-│   │   ├── StudentEvaluationService.java
-│   │   └── ReportCardService.java
+│   ├── usecases/
+│   │   ├── CreateEvaluationUseCaseImpl.java
+│   │   ├── GetEvaluationUseCaseImpl.java
+│   │   ├── UpdateEvaluationUseCaseImpl.java
+│   │   ├── DeleteEvaluationUseCaseImpl.java
+│   │   ├── CreateReportCardUseCaseImpl.java
+│   │   ├── GetReportCardUseCaseImpl.java
+│   │   ├── UpdateReportCardUseCaseImpl.java
+│   │   └── DeleteReportCardUseCaseImpl.java
 │   ├── dto/
+│   │   ├── common/
+│   │   │   ├── ApiResponse.java
+│   │   │   └── ErrorResponse.java
 │   │   ├── request/
 │   │   │   ├── CreateEvaluationRequest.java
 │   │   │   ├── UpdateEvaluationRequest.java
@@ -1195,14 +1331,17 @@ src/main/java/pe/edu/vallegrande/sigei/notes/
 │   │       ├── EvaluationDetailResponse.java
 │   │       ├── ReportCardResponse.java
 │   │       └── ReportCardDetailResponse.java
-│   └── mapper/
+│   ├── events/
+│   │   ├── EvaluationRegisteredEvent.java     [record] evaluationId, studentId, courseId, achievementLevel
+│   │   └── ReportCardPublishedEvent.java      [record] reportCardId, studentId, institutionId, classroomId, academicYear, periodNumber
+│   └── mappers/
 │       ├── EvaluationMapper.java
 │       └── ReportCardMapper.java
 │
 ├── infrastructure/
-│   ├── adapter/
+│   ├── adapters/
 │   │   ├── in/rest/
-│   │   │   ├── EvaluationController.java
+│   │   │   ├── EvaluationRest.java
 │   │   │   │   ├── POST   /api/v1/evaluations
 │   │   │   │   ├── GET    /api/v1/evaluations
 │   │   │   │   ├── GET    /api/v1/evaluations/{id}
@@ -1212,7 +1351,7 @@ src/main/java/pe/edu/vallegrande/sigei/notes/
 │   │   │   │   ├── PUT    /api/v1/evaluations/{id}
 │   │   │   │   └── DELETE /api/v1/evaluations/{id}
 │   │   │   │
-│   │   │   ├── ReportCardController.java
+│   │   │   ├── ReportCardRest.java
 │   │   │   │   ├── POST   /api/v1/report-cards
 │   │   │   │   ├── GET    /api/v1/report-cards
 │   │   │   │   ├── GET    /api/v1/report-cards/{id}
@@ -1226,27 +1365,26 @@ src/main/java/pe/edu/vallegrande/sigei/notes/
 │   │   │
 │   │   └── out/
 │   │       ├── persistence/
-│   │       │   ├── entity/
-│   │       │   │   ├── StudentEvaluationEntity.java ← @Table("student_evaluations")
-│   │       │   │   └── ReportCardEntity.java        ← @Table("report_cards")
-│   │       │   ├── mapper/
-│   │       │   │   ├── EvaluationPersistenceMapper.java
-│   │       │   │   └── ReportCardPersistenceMapper.java
-│   │       │   ├── repository/
-│   │       │   │   ├── R2dbcEvaluationRepository.java
-│   │       │   │   └── R2dbcReportCardRepository.java
-│   │       │   ├── EvaluationPersistenceAdapter.java
-│   │       │   └── ReportCardPersistenceAdapter.java
+│   │       │   ├── EvaluationRepositoryImpl.java
+│   │       │   └── ReportCardRepositoryImpl.java
+│   │       ├── external/
+│   │       │   ├── InstitutionClientImpl.java
+│   │       │   ├── StudentClientImpl.java
+│   │       │   └── AcademicClientImpl.java           ← consulta cursos/competencias
 │   │       └── messaging/
-│   │           └── RabbitNotesEventPublisher.java
+│   │           └── NotesEventPublisherImpl.java
 │   │
-│   ├── client/
-│   │   ├── InstitutionClient.java
-│   │   ├── StudentClient.java
-│   │   └── AcademicClient.java                   ← consulta cursos/competencias
-│   ├── common/
-│   │   ├── ApiResponse.java
-│   │   └── ErrorResponse.java
+│   ├── persistence/
+│   │   ├── entities/
+│   │   │   ├── StudentEvaluationEntity.java      ← @Table("student_evaluations")
+│   │   │   └── ReportCardEntity.java             ← @Table("report_cards")
+│   │   ├── mappers/
+│   │   │   ├── EvaluationPersistenceMapper.java
+│   │   │   └── ReportCardPersistenceMapper.java
+│   │   └── repositories/
+│   │       ├── EvaluationR2dbcRepository.java
+│   │       └── ReportCardR2dbcRepository.java
+│   │
 │   └── config/
 │       ├── R2dbcConfig.java
 │       ├── SecurityConfig.java
@@ -1275,7 +1413,7 @@ src/main/resources/
 src/main/java/pe/edu/vallegrande/sigei/assistance/
 │
 ├── domain/
-│   ├── model/
+│   ├── models/
 │   │   ├── AttendanceRecord.java
 │   │   │   ├── id: UUID
 │   │   │   ├── studentId: String
@@ -1308,37 +1446,43 @@ src/main/java/pe/edu/vallegrande/sigei/assistance/
 │   │   │   ├── attendancePercentage: BigDecimal
 │   │   │   └── lastUpdated: LocalDateTime
 │   │   │
-│   │   └── enums/
+│   │   └── valueobjects/
 │   │       └── AttendanceStatus.java             ← PRESENT, ABSENT, LATE, JUSTIFIED
 │   │
-│   ├── port/
+│   ├── ports/
 │   │   ├── in/
-│   │   │   ├── RegisterAttendanceUseCase.java
-│   │   │   ├── FindAttendanceUseCase.java
-│   │   │   ├── JustifyAttendanceUseCase.java
-│   │   │   ├── BulkAttendanceUseCase.java
-│   │   │   └── AttendanceSummaryUseCase.java
+│   │   │   ├── IRegisterAttendanceUseCase.java
+│   │   │   ├── IGetAttendanceUseCase.java
+│   │   │   ├── IJustifyAttendanceUseCase.java
+│   │   │   ├── IBulkAttendanceUseCase.java
+│   │   │   ├── IDeleteAttendanceUseCase.java
+│   │   │   └── IAttendanceSummaryUseCase.java
 │   │   └── out/
-│   │       ├── AttendanceRecordRepository.java
-│   │       ├── AttendanceSummaryRepository.java
-│   │       ├── FileStoragePort.java              ← Interfaz para subir justificaciones
-│   │       └── AttendanceEventPublisher.java
+│   │       ├── IAttendanceRecordRepository.java
+│   │       ├── IAttendanceSummaryRepository.java
+│   │       ├── IFileStoragePort.java             ← Interfaz para subir justificaciones
+│   │       └── IAttendanceEventPublisher.java
 │   │
-│   ├── exception/
-│   │   ├── AttendanceNotFoundException.java
-│   │   └── AttendanceAlreadyRegisteredException.java
-│   │
-│   └── event/                        ← Eventos publicados a RabbitMQ
-│       ├── AttendanceAbsentEvent.java         [record] studentId, institutionId, classroomId, date, registeredBy
-│       ├── AttendanceLateEvent.java           [record] studentId, institutionId, classroomId, date, arrivalTime
-│       └── AttendanceDailySummaryEvent.java   [record] institutionId, classroomId, date, presentCount, absentCount, lateCount
+│   └── exceptions/
+│       ├── DomainException.java
+│       ├── NotFoundException.java
+│       ├── ConflictException.java
+│       ├── AttendanceNotFoundException.java
+│       └── AttendanceAlreadyRegisteredException.java
 │
 ├── application/
-│   ├── service/
-│   │   ├── AttendanceService.java
-│   │   ├── AttendanceSummaryService.java
-│   │   └── FileStorageService.java
+│   ├── usecases/
+│   │   ├── RegisterAttendanceUseCaseImpl.java
+│   │   ├── GetAttendanceUseCaseImpl.java
+│   │   ├── JustifyAttendanceUseCaseImpl.java
+│   │   ├── BulkAttendanceUseCaseImpl.java
+│   │   ├── DeleteAttendanceUseCaseImpl.java
+│   │   ├── AttendanceSummaryUseCaseImpl.java
+│   │   └── FileStorageUseCaseImpl.java
 │   ├── dto/
+│   │   ├── common/
+│   │   │   ├── ApiResponse.java
+│   │   │   └── ErrorResponse.java
 │   │   ├── request/
 │   │   │   ├── CreateAttendanceRequest.java
 │   │   │   ├── BulkAttendanceRequest.java
@@ -1348,14 +1492,18 @@ src/main/java/pe/edu/vallegrande/sigei/assistance/
 │   │       ├── AttendanceResponse.java
 │   │       ├── AttendanceSummaryResponse.java
 │   │       └── AttendanceStatisticsResponse.java
-│   └── mapper/
+│   ├── events/
+│   │   ├── AttendanceAbsentEvent.java         [record] studentId, institutionId, classroomId, date, registeredBy
+│   │   ├── AttendanceLateEvent.java           [record] studentId, institutionId, classroomId, date, arrivalTime
+│   │   └── AttendanceDailySummaryEvent.java   [record] institutionId, classroomId, date, presentCount, absentCount, lateCount
+│   └── mappers/
 │       ├── AttendanceMapper.java
 │       └── AttendanceSummaryMapper.java
 │
 ├── infrastructure/
-│   ├── adapter/
+│   ├── adapters/
 │   │   ├── in/rest/
-│   │   │   ├── AttendanceController.java
+│   │   │   ├── AttendanceRest.java
 │   │   │   │   ├── POST   /api/v1/attendance
 │   │   │   │   ├── POST   /api/v1/attendance/bulk
 │   │   │   │   ├── GET    /api/v1/attendance/{id}
@@ -1368,14 +1516,14 @@ src/main/java/pe/edu/vallegrande/sigei/assistance/
 │   │   │   │   ├── PATCH  /api/v1/attendance/{id}/justify
 │   │   │   │   └── DELETE /api/v1/attendance/{id}
 │   │   │   │
-│   │   │   ├── AttendanceSummaryController.java
+│   │   │   ├── AttendanceSummaryRest.java
 │   │   │   │   ├── GET    /api/v1/attendance-summary/student/{studentId}
 │   │   │   │   ├── GET    /api/v1/attendance-summary/classroom/{classroomId}
 │   │   │   │   ├── GET    /api/v1/attendance-summary/institution/{institutionId}
 │   │   │   │   ├── GET    /api/v1/attendance-summary/statistics
 │   │   │   │   └── POST   /api/v1/attendance-summary/recalculate
 │   │   │   │
-│   │   │   ├── FileUploadController.java
+│   │   │   ├── FileUploadRest.java
 │   │   │   │   ├── POST   /api/v1/files/upload
 │   │   │   │   ├── DELETE /api/v1/files/{fileId}
 │   │   │   │   └── GET    /api/v1/files/list
@@ -1384,29 +1532,28 @@ src/main/java/pe/edu/vallegrande/sigei/assistance/
 │   │   │
 │   │   └── out/
 │   │       ├── persistence/
-│   │       │   ├── entity/
-│   │       │   │   ├── AttendanceRecordEntity.java   ← @Table("attendance_records")
-│   │       │   │   └── AttendanceSummaryEntity.java  ← @Table("attendance_summary")
-│   │       │   ├── mapper/
-│   │       │   │   ├── AttendancePersistenceMapper.java
-│   │       │   │   └── SummaryPersistenceMapper.java
-│   │       │   ├── repository/
-│   │       │   │   ├── R2dbcAttendanceRepository.java
-│   │       │   │   └── R2dbcSummaryRepository.java
-│   │       │   ├── AttendancePersistenceAdapter.java
-│   │       │   └── SummaryPersistenceAdapter.java
+│   │       │   ├── AttendanceRepositoryImpl.java
+│   │       │   └── SummaryRepositoryImpl.java
+│   │       ├── external/
+│   │       │   ├── InstitutionClientImpl.java
+│   │       │   ├── StudentClientImpl.java
+│   │       │   └── ClassroomClientImpl.java
 │   │       ├── storage/
-│   │       │   └── SupabaseStorageAdapter.java   ← implements FileStoragePort
+│   │       │   └── SupabaseStorageAdapter.java   ← implements IFileStoragePort
 │   │       └── messaging/
-│   │           └── RabbitAttendanceEventPublisher.java
+│   │           └── AttendanceEventPublisherImpl.java
 │   │
-│   ├── client/
-│   │   ├── InstitutionClient.java
-│   │   ├── StudentClient.java
-│   │   └── ClassroomClient.java
-│   ├── common/
-│   │   ├── ApiResponse.java
-│   │   └── ErrorResponse.java
+│   ├── persistence/
+│   │   ├── entities/
+│   │   │   ├── AttendanceRecordEntity.java       ← @Table("attendance_records")
+│   │   │   └── AttendanceSummaryEntity.java      ← @Table("attendance_summary")
+│   │   ├── mappers/
+│   │   │   ├── AttendancePersistenceMapper.java
+│   │   │   └── SummaryPersistenceMapper.java
+│   │   └── repositories/
+│   │       ├── AttendanceR2dbcRepository.java
+│   │       └── SummaryR2dbcRepository.java
+│   │
 │   └── config/
 │       ├── R2dbcConfig.java
 │       ├── SecurityConfig.java
@@ -1437,7 +1584,7 @@ src/main/resources/
 src/main/java/pe/edu/vallegrande/sigei/disciplinary/
 │
 ├── domain/
-│   ├── model/
+│   ├── models/
 │   │   ├── BehaviorRecord.java
 │   │   │   ├── id: UUID
 │   │   │   ├── studentId: String
@@ -1479,38 +1626,51 @@ src/main/java/pe/edu/vallegrande/sigei/disciplinary/
 │   │   │   ├── resolvedBy: String
 │   │   │   └── resolvedAt: LocalDateTime
 │   │   │
-│   │   └── enums/
+│   │   └── valueobjects/
 │   │       ├── BehaviorType.java
 │   │       ├── BehaviorLevel.java
 │   │       ├── IncidentType.java
 │   │       ├── SeverityLevel.java
 │   │       └── IncidentStatus.java
 │   │
-│   ├── port/
+│   ├── ports/
 │   │   ├── in/
-│   │   │   ├── ManageBehaviorRecordUseCase.java
-│   │   │   ├── FindBehaviorRecordUseCase.java
-│   │   │   ├── ManageIncidentUseCase.java
-│   │   │   └── FindIncidentUseCase.java
+│   │   │   ├── ICreateBehaviorRecordUseCase.java
+│   │   │   ├── IGetBehaviorRecordUseCase.java
+│   │   │   ├── IUpdateBehaviorRecordUseCase.java
+│   │   │   ├── IDeleteBehaviorRecordUseCase.java
+│   │   │   ├── ICreateIncidentUseCase.java
+│   │   │   ├── IGetIncidentUseCase.java
+│   │   │   ├── IUpdateIncidentUseCase.java
+│   │   │   ├── IResolveIncidentUseCase.java
+│   │   │   └── IDeleteIncidentUseCase.java
 │   │   └── out/
-│   │       ├── BehaviorRecordRepository.java
-│   │       ├── IncidentRepository.java
-│   │       └── DisciplinaryEventPublisher.java
+│   │       ├── IBehaviorRecordRepository.java
+│   │       ├── IIncidentRepository.java
+│   │       └── IDisciplinaryEventPublisher.java
 │   │
-│   ├── exception/
-│   │   ├── BehaviorRecordNotFoundException.java
-│   │   └── IncidentNotFoundException.java
-│   │
-│   └── event/                        ← Eventos publicados a RabbitMQ
-│       ├── IncidentCreatedEvent.java          [record] incidentId, studentId, institutionId, incidentType, severityLevel, description
-│       ├── IncidentResolvedEvent.java         [record] incidentId, studentId, resolvedBy, resolution
-│       └── BehaviorAlertEvent.java            [record] studentId, institutionId, behaviorType, behaviorLevel, description
+│   └── exceptions/
+│       ├── DomainException.java
+│       ├── NotFoundException.java
+│       ├── ConflictException.java
+│       ├── BehaviorRecordNotFoundException.java
+│       └── IncidentNotFoundException.java
 │
 ├── application/
-│   ├── service/
-│   │   ├── BehaviorRecordService.java
-│   │   └── IncidentService.java
+│   ├── usecases/
+│   │   ├── CreateBehaviorRecordUseCaseImpl.java
+│   │   ├── GetBehaviorRecordUseCaseImpl.java
+│   │   ├── UpdateBehaviorRecordUseCaseImpl.java
+│   │   ├── DeleteBehaviorRecordUseCaseImpl.java
+│   │   ├── CreateIncidentUseCaseImpl.java
+│   │   ├── GetIncidentUseCaseImpl.java
+│   │   ├── UpdateIncidentUseCaseImpl.java
+│   │   ├── ResolveIncidentUseCaseImpl.java
+│   │   └── DeleteIncidentUseCaseImpl.java
 │   ├── dto/
+│   │   ├── common/
+│   │   │   ├── ApiResponse.java
+│   │   │   └── ErrorResponse.java
 │   │   ├── request/
 │   │   │   ├── CreateBehaviorRecordRequest.java
 │   │   │   ├── UpdateBehaviorRecordRequest.java
@@ -1521,14 +1681,18 @@ src/main/java/pe/edu/vallegrande/sigei/disciplinary/
 │   │       ├── BehaviorRecordDetailResponse.java ← con datos de student enriquecidos
 │   │       ├── IncidentResponse.java
 │   │       └── IncidentDetailResponse.java
-│   └── mapper/
+│   ├── events/
+│   │   ├── IncidentCreatedEvent.java          [record] incidentId, studentId, institutionId, incidentType, severityLevel, description
+│   │   ├── IncidentResolvedEvent.java         [record] incidentId, studentId, resolvedBy, resolution
+│   │   └── BehaviorAlertEvent.java            [record] studentId, institutionId, behaviorType, behaviorLevel, description
+│   └── mappers/
 │       ├── BehaviorRecordMapper.java
 │       └── IncidentMapper.java
 │
 ├── infrastructure/
-│   ├── adapter/
+│   ├── adapters/
 │   │   ├── in/rest/
-│   │   │   ├── BehaviorRecordController.java
+│   │   │   ├── BehaviorRecordRest.java
 │   │   │   │   ├── POST   /api/v1/behavior-records
 │   │   │   │   ├── GET    /api/v1/behavior-records
 │   │   │   │   ├── GET    /api/v1/behavior-records/student/{studentId}
@@ -1536,7 +1700,7 @@ src/main/java/pe/edu/vallegrande/sigei/disciplinary/
 │   │   │   │   ├── PUT    /api/v1/behavior-records/{id}
 │   │   │   │   └── DELETE /api/v1/behavior-records/{id}
 │   │   │   │
-│   │   │   ├── IncidentController.java
+│   │   │   ├── IncidentRest.java
 │   │   │   │   ├── POST   /api/v1/incidents
 │   │   │   │   ├── GET    /api/v1/incidents
 │   │   │   │   ├── GET    /api/v1/incidents/{id}
@@ -1550,28 +1714,27 @@ src/main/java/pe/edu/vallegrande/sigei/disciplinary/
 │   │   │
 │   │   └── out/
 │   │       ├── persistence/
-│   │       │   ├── entity/
-│   │       │   │   ├── BehaviorRecordEntity.java ← @Table("behavior_records")
-│   │       │   │   └── IncidentEntity.java       ← @Table("incidents")
-│   │       │   ├── mapper/
-│   │       │   │   ├── BehaviorPersistenceMapper.java
-│   │       │   │   └── IncidentPersistenceMapper.java
-│   │       │   ├── repository/
-│   │       │   │   ├── R2dbcBehaviorRepository.java
-│   │       │   │   └── R2dbcIncidentRepository.java
-│   │       │   ├── BehaviorPersistenceAdapter.java
-│   │       │   └── IncidentPersistenceAdapter.java
+│   │       │   ├── BehaviorRepositoryImpl.java
+│   │       │   └── IncidentRepositoryImpl.java
+│   │       ├── external/
+│   │       │   ├── InstitutionClientImpl.java
+│   │       │   ├── StudentClientImpl.java
+│   │       │   ├── ClassroomClientImpl.java
+│   │       │   └── UserClientImpl.java
 │   │       └── messaging/
-│   │           └── RabbitDisciplinaryEventPublisher.java
+│   │           └── DisciplinaryEventPublisherImpl.java
 │   │
-│   ├── client/
-│   │   ├── InstitutionClient.java
-│   │   ├── StudentClient.java
-│   │   ├── ClassroomClient.java
-│   │   └── UserClient.java
-│   ├── common/
-│   │   ├── ApiResponse.java
-│   │   └── ErrorResponse.java
+│   ├── persistence/
+│   │   ├── entities/
+│   │   │   ├── BehaviorRecordEntity.java          ← @Table("behavior_records")
+│   │   │   └── IncidentEntity.java                ← @Table("incidents")
+│   │   ├── mappers/
+│   │   │   ├── BehaviorPersistenceMapper.java
+│   │   │   └── IncidentPersistenceMapper.java
+│   │   └── repositories/
+│   │       ├── BehaviorR2dbcRepository.java
+│   │       └── IncidentR2dbcRepository.java
+│   │
 │   └── config/
 │       ├── R2dbcConfig.java
 │       ├── SecurityConfig.java
@@ -1601,7 +1764,7 @@ src/main/resources/
 src/main/java/pe/edu/vallegrande/sigei/psychology/
 │
 ├── domain/
-│   ├── model/
+│   ├── models/
 │   │   ├── PsychologicalEvaluation.java
 │   │   │   ├── id: UUID
 │   │   │   ├── studentId: UUID
@@ -1645,36 +1808,48 @@ src/main/java/pe/edu/vallegrande/sigei/psychology/
 │   │   │   ├── createdAt: LocalDateTime
 │   │   │   └── updatedAt: LocalDateTime
 │   │   │
-│   │   └── enums/
+│   │   └── valueobjects/
 │   │       ├── EvaluationType.java               ← INITIAL, FOLLOW_UP, FINAL, EMERGENCY
 │   │       ├── DevelopmentLevel.java             ← ADVANCED, EXPECTED, IN_PROGRESS, NEEDS_SUPPORT
 │   │       ├── SupportType.java                  ← SPEECH_THERAPY, OCCUPATIONAL, BEHAVIORAL, etc.
 │   │       └── Status.java                       ← ACTIVE, INACTIVE
 │   │
-│   ├── port/
+│   ├── ports/
 │   │   ├── in/
-│   │   │   ├── ManageEvaluationUseCase.java
-│   │   │   ├── FindEvaluationUseCase.java
-│   │   │   ├── ManageSpecialNeedsUseCase.java
-│   │   │   └── FindSpecialNeedsUseCase.java
+│   │   │   ├── ICreateEvaluationUseCase.java
+│   │   │   ├── IGetEvaluationUseCase.java
+│   │   │   ├── IUpdateEvaluationUseCase.java
+│   │   │   ├── IDeactivateEvaluationUseCase.java
+│   │   │   ├── ICreateSpecialNeedsUseCase.java
+│   │   │   ├── IGetSpecialNeedsUseCase.java
+│   │   │   ├── IUpdateSpecialNeedsUseCase.java
+│   │   │   └── IDeleteSpecialNeedsUseCase.java
 │   │   └── out/
-│   │       ├── PsychologicalEvaluationRepository.java
-│   │       ├── SpecialNeedsSupportRepository.java
-│   │       └── PsychologyEventPublisher.java
+│   │       ├── IPsychologicalEvaluationRepository.java
+│   │       ├── ISpecialNeedsSupportRepository.java
+│   │       └── IPsychologyEventPublisher.java
 │   │
-│   ├── exception/
-│   │   ├── EvaluationNotFoundException.java
-│   │   └── SpecialNeedsSupportNotFoundException.java
-│   │
-│   └── event/                        ← Eventos publicados a RabbitMQ
-│       ├── PsychologicalEvaluationCompletedEvent.java [record] evaluationId, studentId, institutionId, evaluationType, requiresFollowUp
-│       └── FollowUpDueEvent.java              [record] evaluationId, studentId, institutionId, dueDate, followUpFrequency
+│   └── exceptions/
+│       ├── DomainException.java
+│       ├── NotFoundException.java
+│       ├── ConflictException.java
+│       ├── EvaluationNotFoundException.java
+│       └── SpecialNeedsSupportNotFoundException.java
 │
 ├── application/
-│   ├── service/
-│   │   ├── PsychologicalEvaluationService.java
-│   │   └── SpecialNeedsSupportService.java
+│   ├── usecases/
+│   │   ├── CreateEvaluationUseCaseImpl.java
+│   │   ├── GetEvaluationUseCaseImpl.java
+│   │   ├── UpdateEvaluationUseCaseImpl.java
+│   │   ├── DeactivateEvaluationUseCaseImpl.java
+│   │   ├── CreateSpecialNeedsUseCaseImpl.java
+│   │   ├── GetSpecialNeedsUseCaseImpl.java
+│   │   ├── UpdateSpecialNeedsUseCaseImpl.java
+│   │   └── DeleteSpecialNeedsUseCaseImpl.java
 │   ├── dto/
+│   │   ├── common/
+│   │   │   ├── ApiResponse.java
+│   │   │   └── ErrorResponse.java
 │   │   ├── request/
 │   │   │   ├── CreateEvaluationRequest.java
 │   │   │   ├── UpdateEvaluationRequest.java
@@ -1685,14 +1860,17 @@ src/main/java/pe/edu/vallegrande/sigei/psychology/
 │   │       ├── EvaluationDetailResponse.java
 │   │       ├── SpecialNeedsResponse.java
 │   │       └── ReferenceDataResponse.java
-│   └── mapper/
+│   ├── events/
+│   │   ├── PsychologicalEvaluationCompletedEvent.java [record] evaluationId, studentId, institutionId, evaluationType, requiresFollowUp
+│   │   └── FollowUpDueEvent.java              [record] evaluationId, studentId, institutionId, dueDate, followUpFrequency
+│   └── mappers/
 │       ├── EvaluationMapper.java
 │       └── SpecialNeedsMapper.java
 │
 ├── infrastructure/
-│   ├── adapter/
+│   ├── adapters/
 │   │   ├── in/rest/
-│   │   │   ├── PsychologicalEvaluationController.java
+│   │   │   ├── PsychologicalEvaluationRest.java
 │   │   │   │   ├── POST   /api/v1/psychological-evaluations
 │   │   │   │   ├── GET    /api/v1/psychological-evaluations
 │   │   │   │   ├── GET    /api/v1/psychological-evaluations/{id}
@@ -1705,7 +1883,7 @@ src/main/java/pe/edu/vallegrande/sigei/psychology/
 │   │   │   │   ├── PATCH  /api/v1/psychological-evaluations/{id}/deactivate
 │   │   │   │   └── PATCH  /api/v1/psychological-evaluations/{id}/reactivate
 │   │   │   │
-│   │   │   ├── SpecialNeedsSupportController.java
+│   │   │   ├── SpecialNeedsSupportRest.java
 │   │   │   │   ├── POST   /api/v1/special-needs-support
 │   │   │   │   ├── GET    /api/v1/special-needs-support
 │   │   │   │   ├── GET    /api/v1/special-needs-support/{id}
@@ -1715,7 +1893,7 @@ src/main/java/pe/edu/vallegrande/sigei/psychology/
 │   │   │   │   ├── DELETE /api/v1/special-needs-support/{id}
 │   │   │   │   └── PATCH  /api/v1/special-needs-support/{id}/activate
 │   │   │   │
-│   │   │   ├── ReferenceDataController.java
+│   │   │   ├── ReferenceDataRest.java
 │   │   │   │   ├── GET    /api/v1/reference-data/students
 │   │   │   │   ├── GET    /api/v1/reference-data/classrooms
 │   │   │   │   ├── GET    /api/v1/reference-data/institutions
@@ -1725,28 +1903,27 @@ src/main/java/pe/edu/vallegrande/sigei/psychology/
 │   │   │
 │   │   └── out/
 │   │       ├── persistence/
-│   │       │   ├── entity/
-│   │       │   │   ├── EvaluationEntity.java         ← @Table("psychological_evaluations")
-│   │       │   │   └── SpecialNeedsSupportEntity.java ← @Table("special_needs_support")
-│   │       │   ├── mapper/
-│   │       │   │   ├── EvaluationPersistenceMapper.java
-│   │       │   │   └── SpecialNeedsPersistenceMapper.java
-│   │       │   ├── repository/
-│   │       │   │   ├── R2dbcEvaluationRepository.java
-│   │       │   │   └── R2dbcSpecialNeedsRepository.java
-│   │       │   ├── EvaluationPersistenceAdapter.java
-│   │       │   └── SpecialNeedsPersistenceAdapter.java
+│   │       │   ├── EvaluationRepositoryImpl.java
+│   │       │   └── SpecialNeedsRepositoryImpl.java
+│   │       ├── external/
+│   │       │   ├── InstitutionClientImpl.java
+│   │       │   ├── StudentClientImpl.java
+│   │       │   ├── ClassroomClientImpl.java
+│   │       │   └── UserClientImpl.java
 │   │       └── messaging/
-│   │           └── RabbitPsychologyEventPublisher.java
+│   │           └── PsychologyEventPublisherImpl.java
 │   │
-│   ├── client/
-│   │   ├── InstitutionClient.java
-│   │   ├── StudentClient.java
-│   │   ├── ClassroomClient.java
-│   │   └── UserClient.java
-│   ├── common/
-│   │   ├── ApiResponse.java
-│   │   └── ErrorResponse.java
+│   ├── persistence/
+│   │   ├── entities/
+│   │   │   ├── EvaluationEntity.java              ← @Table("psychological_evaluations")
+│   │   │   └── SpecialNeedsSupportEntity.java     ← @Table("special_needs_support")
+│   │   ├── mappers/
+│   │   │   ├── EvaluationPersistenceMapper.java
+│   │   │   └── SpecialNeedsPersistenceMapper.java
+│   │   └── repositories/
+│   │       ├── EvaluationR2dbcRepository.java
+│   │       └── SpecialNeedsR2dbcRepository.java
+│   │
 │   └── config/
 │       ├── R2dbcConfig.java
 │       ├── SecurityConfig.java
@@ -1776,7 +1953,7 @@ src/main/resources/
 src/main/java/pe/edu/vallegrande/sigei/teacherAssignment/
 │
 ├── domain/
-│   ├── model/
+│   ├── models/
 │   │   ├── TeacherAssignment.java
 │   │   │   ├── id: UUID
 │   │   │   ├── teacherUserId: String
@@ -1809,36 +1986,45 @@ src/main/java/pe/edu/vallegrande/sigei/teacherAssignment/
 │   │   │   ├── sessionType: SessionType          ← REGULAR, TUTORIAL, EXTRA
 │   │   │   └── createdAt: LocalDateTime
 │   │   │
-│   │   └── enums/
+│   │   └── valueobjects/
 │   │       ├── AssignmentType.java               ← REGULAR, SUBSTITUTE, SUPPORT
 │   │       ├── Status.java                       ← ACTIVE, INACTIVE, DELETED
 │   │       ├── DayOfWeek.java                    ← MONDAY..FRIDAY
 │   │       └── SessionType.java                  ← REGULAR, TUTORIAL, EXTRA
 │   │
-│   ├── port/
+│   ├── ports/
 │   │   ├── in/
-│   │   │   ├── ManageAssignmentUseCase.java
-│   │   │   ├── FindAssignmentUseCase.java
-│   │   │   ├── ManageClassroomAssignmentUseCase.java
-│   │   │   └── ManageScheduleUseCase.java
+│   │   │   ├── ICreateAssignmentUseCase.java
+│   │   │   ├── IGetAssignmentUseCase.java
+│   │   │   ├── IUpdateAssignmentUseCase.java
+│   │   │   ├── IDeleteAssignmentUseCase.java
+│   │   │   ├── IManageClassroomAssignmentUseCase.java
+│   │   │   └── IManageScheduleUseCase.java
 │   │   └── out/
-│   │       ├── TeacherAssignmentRepository.java
-│   │       ├── AssignmentClassroomRepository.java
-│   │       ├── AssignmentScheduleRepository.java
-│   │       └── AssignmentEventPublisher.java
+│   │       ├── ITeacherAssignmentRepository.java
+│   │       ├── IAssignmentClassroomRepository.java
+│   │       ├── IAssignmentScheduleRepository.java
+│   │       └── IAssignmentEventPublisher.java
 │   │
-│   ├── exception/
-│   │   ├── AssignmentNotFoundException.java
-│   │   └── AssignmentConflictException.java
-│   │
-│   └── event/                        ← Eventos publicados a RabbitMQ
-│       ├── AssignmentCreatedEvent.java        [record] assignmentId, teacherUserId, institutionId, classroomIds, academicYear
-│       └── AssignmentUpdatedEvent.java        [record] assignmentId, teacherUserId, changes
+│   └── exceptions/
+│       ├── DomainException.java
+│       ├── NotFoundException.java
+│       ├── ConflictException.java
+│       ├── AssignmentNotFoundException.java
+│       └── AssignmentConflictException.java
 │
 ├── application/
-│   ├── service/
-│   │   └── TeacherAssignmentService.java
+│   ├── usecases/
+│   │   ├── CreateAssignmentUseCaseImpl.java
+│   │   ├── GetAssignmentUseCaseImpl.java
+│   │   ├── UpdateAssignmentUseCaseImpl.java
+│   │   ├── DeleteAssignmentUseCaseImpl.java
+│   │   ├── ManageClassroomAssignmentUseCaseImpl.java
+│   │   └── ManageScheduleUseCaseImpl.java
 │   ├── dto/
+│   │   ├── common/
+│   │   │   ├── ApiResponse.java
+│   │   │   └── ErrorResponse.java
 │   │   ├── request/
 │   │   │   ├── CreateAssignmentRequest.java
 │   │   │   ├── UpdateAssignmentRequest.java
@@ -1849,13 +2035,16 @@ src/main/java/pe/edu/vallegrande/sigei/teacherAssignment/
 │   │       ├── AssignmentDetailResponse.java     ← con classrooms y schedules
 │   │       ├── ClassroomAssignmentResponse.java
 │   │       └── ScheduleResponse.java
-│   └── mapper/
+│   ├── events/
+│   │   ├── AssignmentCreatedEvent.java        [record] assignmentId, teacherUserId, institutionId, classroomIds, academicYear
+│   │   └── AssignmentUpdatedEvent.java        [record] assignmentId, teacherUserId, changes
+│   └── mappers/
 │       └── AssignmentMapper.java
 │
 ├── infrastructure/
-│   ├── adapter/
+│   ├── adapters/
 │   │   ├── in/rest/
-│   │   │   ├── TeacherAssignmentController.java
+│   │   │   ├── TeacherAssignmentRest.java
 │   │   │   │   ├── POST   /api/v1/teacher-assignments
 │   │   │   │   ├── GET    /api/v1/teacher-assignments
 │   │   │   │   ├── GET    /api/v1/teacher-assignments/{id}
@@ -1868,7 +2057,7 @@ src/main/java/pe/edu/vallegrande/sigei/teacherAssignment/
 │   │   │   │   ├── DELETE /api/v1/teacher-assignments/{id}
 │   │   │   │   └── PATCH  /api/v1/teacher-assignments/{id}/restore
 │   │   │   │
-│   │   │   ├── AssignmentManagementController.java
+│   │   │   ├── AssignmentManagementRest.java
 │   │   │   │   ├── POST   /api/v1/assignments-management/{id}/classrooms
 │   │   │   │   ├── DELETE /api/v1/assignments-management/{id}/classrooms/{classroomId}
 │   │   │   │   ├── PATCH  /api/v1/assignments-management/{id}/classrooms/{classroomId}/primary
@@ -1879,30 +2068,29 @@ src/main/java/pe/edu/vallegrande/sigei/teacherAssignment/
 │   │   │
 │   │   └── out/
 │   │       ├── persistence/
-│   │       │   ├── entity/
-│   │       │   │   ├── TeacherAssignmentEntity.java          ← @Table("teacher_assignments")
-│   │       │   │   ├── AssignmentClassroomEntity.java        ← @Table("assignment_classrooms")
-│   │       │   │   └── AssignmentScheduleEntity.java         ← @Table("assignment_schedules")
-│   │       │   ├── mapper/
-│   │       │   │   └── AssignmentPersistenceMapper.java
-│   │       │   ├── repository/
-│   │       │   │   ├── R2dbcAssignmentRepository.java
-│   │       │   │   ├── R2dbcAssignmentClassroomRepository.java
-│   │       │   │   └── R2dbcAssignmentScheduleRepository.java
-│   │       │   ├── AssignmentPersistenceAdapter.java
-│   │       │   ├── ClassroomAssignmentPersistenceAdapter.java
-│   │       │   └── SchedulePersistenceAdapter.java
+│   │       │   ├── AssignmentRepositoryImpl.java
+│   │       │   ├── ClassroomAssignmentRepositoryImpl.java
+│   │       │   └── ScheduleRepositoryImpl.java
+│   │       ├── external/
+│   │       │   ├── InstitutionClientImpl.java
+│   │       │   ├── UserClientImpl.java
+│   │       │   ├── ClassroomClientImpl.java
+│   │       │   └── CourseClientImpl.java
 │   │       └── messaging/
-│   │           └── RabbitAssignmentEventPublisher.java
+│   │           └── AssignmentEventPublisherImpl.java
 │   │
-│   ├── client/
-│   │   ├── InstitutionClient.java
-│   │   ├── UserClient.java
-│   │   ├── ClassroomClient.java
-│   │   └── CourseClient.java
-│   ├── common/
-│   │   ├── ApiResponse.java
-│   │   └── ErrorResponse.java
+│   ├── persistence/
+│   │   ├── entities/
+│   │   │   ├── TeacherAssignmentEntity.java          ← @Table("teacher_assignments")
+│   │   │   ├── AssignmentClassroomEntity.java        ← @Table("assignment_classrooms")
+│   │   │   └── AssignmentScheduleEntity.java         ← @Table("assignment_schedules")
+│   │   ├── mappers/
+│   │   │   └── AssignmentPersistenceMapper.java
+│   │   └── repositories/
+│   │       ├── AssignmentR2dbcRepository.java
+│   │       ├── AssignmentClassroomR2dbcRepository.java
+│   │       └── AssignmentScheduleR2dbcRepository.java
+│   │
 │   └── config/
 │       ├── R2dbcConfig.java
 │       ├── SecurityConfig.java
@@ -1935,7 +2123,7 @@ src/main/resources/
 src/main/java/pe/edu/vallegrande/sigei/notifications/
 │
 ├── domain/
-│   ├── model/
+│   ├── models/
 │   │   ├── Notification.java
 │   │   │   ├── id: UUID
 │   │   │   ├── institutionId: String
@@ -1984,48 +2172,44 @@ src/main/java/pe/edu/vallegrande/sigei/notifications/
 │   │   │   ├── evolutionResponse: String         ← JSON response de Evolution API
 │   │   │   └── createdAt: LocalDateTime
 │   │   │
-│   │   └── enums/
+│   │   └── valueobjects/
 │   │       ├── NotificationChannel.java          ← WHATSAPP, EMAIL, SMS (futuro)
 │   │       ├── NotificationType.java             ← ver detalle abajo
 │   │       └── NotificationStatus.java           ← PENDING, SENT, DELIVERED, READ, FAILED
 │   │
-│   ├── port/
+│   ├── ports/
 │   │   ├── in/
-│   │   │   ├── SendNotificationUseCase.java
-│   │   │   ├── FindNotificationUseCase.java
-│   │   │   ├── RetryNotificationUseCase.java
-│   │   │   ├── ManageTemplateUseCase.java
-│   │   │   └── ProcessEventUseCase.java          ← Procesa eventos de RabbitMQ
+│   │   │   ├── ISendNotificationUseCase.java
+│   │   │   ├── IGetNotificationUseCase.java
+│   │   │   ├── IRetryNotificationUseCase.java
+│   │   │   ├── IManageTemplateUseCase.java
+│   │   │   └── IProcessEventUseCase.java         ← Procesa eventos de RabbitMQ
 │   │   └── out/
-│   │       ├── NotificationRepository.java
-│   │       ├── NotificationTemplateRepository.java
-│   │       ├── NotificationLogRepository.java
-│   │       └── WhatsAppSenderPort.java           ← Interfaz hacia Evolution API
+│   │       ├── INotificationRepository.java
+│   │       ├── INotificationTemplateRepository.java
+│   │       ├── INotificationLogRepository.java
+│   │       └── IWhatsAppSenderPort.java          ← Interfaz hacia Evolution API
 │   │
-│   ├── exception/
-│   │   ├── NotificationNotFoundException.java
-│   │   ├── TemplateNotFoundException.java
-│   │   ├── WhatsAppSendException.java
-│   │   └── InvalidPhoneNumberException.java
-│   │
-│   └── event/                        ← Eventos de dominio que CONSUME (desde otros MS vía RabbitMQ)
-│       ├── AttendanceAbsentEvent.java         [record] studentId, institutionId, classroomId, date
-│       ├── AttendanceLateEvent.java           [record] studentId, institutionId, classroomId, date, arrivalTime
-│       ├── ReportCardPublishedEvent.java      [record] reportCardId, studentId, institutionId, academicYear, periodNumber
-│       ├── IncidentCreatedEvent.java          [record] incidentId, studentId, institutionId, incidentType, description
-│       ├── IncidentResolvedEvent.java         [record] incidentId, studentId, resolution
-│       ├── EnrollmentConfirmedEvent.java      [record] enrollmentId, studentId, institutionId, classroomId, academicYear
-│       ├── PsychologicalEvaluationCompletedEvent.java [record] evaluationId, studentId, institutionId, evaluationType, requiresFollowUp
-│       ├── FollowUpDueEvent.java              [record] evaluationId, studentId, dueDate
-│       └── AnnouncementCreatedEvent.java      [record] institutionId, title, message, targetAudience
+│   └── exceptions/
+│       ├── DomainException.java
+│       ├── NotFoundException.java
+│       ├── ConflictException.java
+│       ├── NotificationNotFoundException.java
+│       ├── TemplateNotFoundException.java
+│       ├── WhatsAppSendException.java
+│       └── InvalidPhoneNumberException.java
 │
 ├── application/
-│   ├── service/
-│   │   ├── NotificationService.java              ← Orquesta envío de notificaciones
-│   │   ├── NotificationTemplateService.java      ← CRUD de plantillas
-│   │   ├── NotificationRetryService.java         ← Reintentos automáticos
-│   │   └── EventProcessorService.java            ← Convierte eventos RabbitMQ → Notification
+│   ├── usecases/
+│   │   ├── SendNotificationUseCaseImpl.java
+│   │   ├── GetNotificationUseCaseImpl.java
+│   │   ├── RetryNotificationUseCaseImpl.java
+│   │   ├── ManageTemplateUseCaseImpl.java
+│   │   └── ProcessEventUseCaseImpl.java      ← Convierte eventos RabbitMQ → Notification
 │   ├── dto/
+│   │   ├── common/
+│   │   │   ├── ApiResponse.java
+│   │   │   └── ErrorResponse.java
 │   │   ├── request/
 │   │   │   ├── SendNotificationRequest.java
 │   │   │   ├── SendBulkNotificationRequest.java  ← Envío masivo (ej: todas las faltas del día)
@@ -2036,10 +2220,10 @@ src/main/java/pe/edu/vallegrande/sigei/notifications/
 │   │       ├── NotificationDetailResponse.java   ← con logs
 │   │       ├── NotificationStatsResponse.java    ← estadísticas
 │   │       └── TemplateResponse.java
-│   ├── mapper/
+│   ├── mappers/
 │   │   ├── NotificationMapper.java
 │   │   └── TemplateMapper.java
-│   └── event/                                    ← DTOs de eventos que recibe de otros MS
+│   └── events/                                   ← DTOs de eventos que recibe de otros MS
 │       ├── AttendanceEvent.java                  ← Evento de asistencia (de MS Assistance)
 │       ├── GradePublishedEvent.java              ← Libreta publicada (de MS Notes)
 │       ├── IncidentCreatedEvent.java             ← Incidente (de MS Disciplinary)
@@ -2048,10 +2232,10 @@ src/main/java/pe/edu/vallegrande/sigei/notifications/
 │       └── InstitutionAnnouncementEvent.java     ← Comunicado general (de MS Institution)
 │
 ├── infrastructure/
-│   ├── adapter/
+│   ├── adapters/
 │   │   ├── in/
 │   │   │   ├── rest/
-│   │   │   │   ├── NotificationController.java
+│   │   │   │   ├── NotificationRest.java
 │   │   │   │   │   ├── POST   /api/v1/notifications/send
 │   │   │   │   │   ├── POST   /api/v1/notifications/send-bulk
 │   │   │   │   │   ├── GET    /api/v1/notifications
@@ -2063,7 +2247,7 @@ src/main/java/pe/edu/vallegrande/sigei/notifications/
 │   │   │   │   │   ├── GET    /api/v1/notifications/stats/{institutionId}
 │   │   │   │   │   └── POST   /api/v1/notifications/{id}/retry
 │   │   │   │   │
-│   │   │   │   ├── TemplateController.java
+│   │   │   │   ├── TemplateRest.java
 │   │   │   │   │   ├── GET    /api/v1/templates
 │   │   │   │   │   ├── GET    /api/v1/templates/{id}
 │   │   │   │   │   ├── GET    /api/v1/templates/key/{templateKey}
@@ -2071,7 +2255,7 @@ src/main/java/pe/edu/vallegrande/sigei/notifications/
 │   │   │   │   │   ├── PUT    /api/v1/templates/{id}
 │   │   │   │   │   └── DELETE /api/v1/templates/{id}
 │   │   │   │   │
-│   │   │   │   ├── WebhookController.java        ← Recibe webhooks de Evolution API
+│   │   │   │   ├── WebhookRest.java                  ← Recibe webhooks de Evolution API
 │   │   │   │   │   └── POST   /api/v1/webhooks/evolution
 │   │   │   │   │
 │   │   │   │   └── GlobalExceptionHandler.java
@@ -2092,25 +2276,16 @@ src/main/java/pe/edu/vallegrande/sigei/notifications/
 │   │   │
 │   │   └── out/
 │   │       ├── persistence/
-│   │       │   ├── entity/
-│   │       │   │   ├── NotificationEntity.java       ← @Table("notifications")
-│   │       │   │   ├── NotificationTemplateEntity.java ← @Table("notification_templates")
-│   │       │   │   └── NotificationLogEntity.java    ← @Table("notification_logs")
-│   │       │   ├── mapper/
-│   │       │   │   ├── NotificationPersistenceMapper.java
-│   │       │   │   ├── TemplatePersistenceMapper.java
-│   │       │   │   └── LogPersistenceMapper.java
-│   │       │   ├── repository/
-│   │       │   │   ├── R2dbcNotificationRepository.java
-│   │       │   │   ├── R2dbcTemplateRepository.java
-│   │       │   │   └── R2dbcLogRepository.java
-│   │       │   ├── NotificationPersistenceAdapter.java
-│   │       │   ├── TemplatePersistenceAdapter.java
-│   │       │   └── LogPersistenceAdapter.java
-│   │       │
+│   │       │   ├── NotificationRepositoryImpl.java
+│   │       │   ├── TemplateRepositoryImpl.java
+│   │       │   └── LogRepositoryImpl.java
+│   │       ├── external/
+│   │       │   ├── StudentClientImpl.java            ← Obtener datos del estudiante y guardián
+│   │       │   ├── InstitutionClientImpl.java        ← Datos de la institución
+│   │       │   └── UserClientImpl.java               ← Datos del usuario para el teléfono
 │   │       └── whatsapp/                         ← Adaptador hacia EVOLUTION API
 │   │           ├── EvolutionApiClient.java        ← WebClient → Evolution API
-│   │           ├── EvolutionWhatsAppAdapter.java  ← implements WhatsAppSenderPort
+│   │           ├── EvolutionWhatsAppAdapter.java  ← implements IWhatsAppSenderPort
 │   │           ├── dto/
 │   │           │   ├── EvolutionSendTextRequest.java
 │   │           │   ├── EvolutionSendMediaRequest.java
@@ -2120,13 +2295,20 @@ src/main/java/pe/edu/vallegrande/sigei/notifications/
 │   │           └── mapper/
 │   │               └── EvolutionMapper.java       ← Domain → Evolution API format
 │   │
-│   ├── client/
-│   │   ├── StudentClient.java                    ← Obtener datos del estudiante y guardián
-│   │   ├── InstitutionClient.java                ← Datos de la institución
-│   │   └── UserClient.java                       ← Datos del usuario para el teléfono
-│   ├── common/
-│   │   ├── ApiResponse.java
-│   │   └── ErrorResponse.java
+│   ├── persistence/
+│   │   ├── entities/
+│   │   │   ├── NotificationEntity.java           ← @Table("notifications")
+│   │   │   ├── NotificationTemplateEntity.java   ← @Table("notification_templates")
+│   │   │   └── NotificationLogEntity.java        ← @Table("notification_logs")
+│   │   ├── mappers/
+│   │   │   ├── NotificationPersistenceMapper.java
+│   │   │   ├── TemplatePersistenceMapper.java
+│   │   │   └── LogPersistenceMapper.java
+│   │   └── repositories/
+│   │       ├── NotificationR2dbcRepository.java
+│   │       ├── TemplateR2dbcRepository.java
+│   │       └── LogR2dbcRepository.java
+│   │
 │   └── config/
 │       ├── R2dbcConfig.java
 │       ├── SecurityConfig.java
@@ -2454,21 +2636,33 @@ src/main/resources/
 ## 📏 REGLAS DE NOMENCLATURA
 
 | Elemento | Convención | Ejemplo |
-|----------|-----------|---------|
+| -------- | ---------- | ------- |
 | Paquete base | `pe.edu.vallegrande.sigei.<modulo>` | `pe.edu.vallegrande.sigei.institution` |
+| Carpeta modelos | `domain/models/` (plural) | `models/Institution.java` |
+| Carpeta enums | `domain/models/valueobjects/` | `valueobjects/Status.java` |
+| Carpeta puertos | `domain/ports/` (plural) | `ports/in/`, `ports/out/` |
+| Carpeta excepciones | `domain/exceptions/` (plural) | `exceptions/DomainException.java` |
 | Entidad de dominio | PascalCase, sin sufijos | `Institution`, `Student` |
 | Entidad de persistencia | PascalCase + `Entity` | `InstitutionEntity` |
-| Repository (dominio) | `<Nombre>Repository` | `InstitutionRepository` |
-| Repository (R2DBC) | `R2dbc<Nombre>Repository` | `R2dbcInstitutionRepository` |
-| Adapter de persistencia | `<Nombre>PersistenceAdapter` | `InstitutionPersistenceAdapter` |
-| Use Case (puerto in) | `<Verbo><Nombre>UseCase` | `CreateInstitutionUseCase` |
-| Service (implementación) | `<Nombre>Service` | `InstitutionService` |
-| Controller | `<Nombre>Controller` | `InstitutionController` |
+| Repository (dominio, puerto out) | `I<Nombre>Repository` | `IInstitutionRepository` |
+| Repository (R2DBC, infra) | `<Nombre>R2dbcRepository` | `InstitutionR2dbcRepository` |
+| Adapter de persistencia | `<Nombre>RepositoryImpl` | `InstitutionRepositoryImpl` |
+| Use Case (puerto in) | `I<Verbo><Nombre>UseCase` | `ICreateInstitutionUseCase` |
+| Use Case (implementación) | `<Verbo><Nombre>UseCaseImpl` | `CreateInstitutionUseCaseImpl` |
+| Controller (REST adapter) | `<Nombre>Rest` | `InstitutionRest` |
+| Event Publisher (puerto out) | `I<Nombre>EventPublisher` | `INotesEventPublisher` |
+| Event Publisher (impl) | `<Nombre>EventPublisherImpl` | `NotesEventPublisherImpl` |
 | Mapper (aplicación) | `<Nombre>Mapper` | `InstitutionMapper` |
 | Mapper (persistencia) | `<Nombre>PersistenceMapper` | `InstitutionPersistenceMapper` |
 | DTO request | `<Verbo><Nombre>Request` | `CreateInstitutionRequest` |
 | DTO response | `<Nombre>Response` | `InstitutionResponse` |
+| DTO comunes | `application/dto/common/` | `ApiResponse.java`, `ErrorResponse.java` |
+| Eventos de dominio | `application/events/` | `InstitutionCreatedEvent.java` |
+| Excepciones base | `DomainException`, `NotFoundException`, `ConflictException` | Heredan todas las demás |
 | Excepción not found | `<Nombre>NotFoundException` | `InstitutionNotFoundException` |
+| Client externo (impl) | `<Nombre>ClientImpl` | `InstitutionClientImpl` |
+| Carpeta clients | `adapters/out/external/` | `external/InstitutionClientImpl.java` |
+| Carpeta persistence (infra) | `infrastructure/persistence/` | `entities/`, `mappers/`, `repositories/` |
 | Tabla BD | snake_case, plural | `institutions`, `attendance_records` |
 | Migración Flyway | `V<N>__<descripcion>.sql` | `V1__create_institutions_table.sql` |
 | Endpoint base | `/api/v1/<recurso>` | `/api/v1/institutions` |

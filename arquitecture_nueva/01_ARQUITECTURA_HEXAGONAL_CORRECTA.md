@@ -115,99 +115,93 @@ vg-ms-{nombre}/
 │   │   ├── java/pe/edu/vallegrande/sigei/{modulo}/
 │   │   │   │
 │   │   │   ├── domain/                          🏛️ DOMINIO (CAPA CORE)
-│   │   │   │   ├── model/                       → Entidades y Aggregates
-│   │   │   │   │   ├── Student.java             → Entidad raíz del aggregate
-│   │   │   │   │   ├── StudentId.java           → Value Object de identidad
-│   │   │   │   │   └── Guardian.java            → Value Object
+│   │   │   │   ├── models/                      → Entidades y Aggregates
+│   │   │   │   │   ├── Student.java             → Entidad raíz (POJO puro)
+│   │   │   │   │   └── valueobjects/            → Value Objects y Enums
+│   │   │   │   │       ├── PersonalInfo.java
+│   │   │   │   │       ├── DocumentType.java    → Enum con validación
+│   │   │   │   │       ├── StudentStatus.java   → Enum ACTIVE/INACTIVE
+│   │   │   │   │       └── Email.java           → Record con validación
 │   │   │   │   │
-│   │   │   │   ├── vo/                          → Value Objects reutilizables
-│   │   │   │   │   ├── PersonalInfo.java
-│   │   │   │   │   ├── DocumentNumber.java      → Con validación self-contained
-│   │   │   │   │   ├── Email.java               → Con validación de formato
-│   │   │   │   │   └── PhoneNumber.java
-│   │   │   │   │
-│   │   │   │   ├── event/                       → Eventos de dominio
-│   │   │   │   │   ├── StudentCreated.java
-│   │   │   │   │   ├── StudentEnrolled.java
-│   │   │   │   │   └── StudentDeactivated.java
-│   │   │   │   │
-│   │   │   │   ├── exception/                   → Excepciones de dominio
+│   │   │   │   ├── exceptions/                  → Excepciones de dominio
+│   │   │   │   │   ├── DomainException.java              → Base abstracta
+│   │   │   │   │   ├── NotFoundException.java             → Base para 404
+│   │   │   │   │   ├── ConflictException.java             → Base para 409
 │   │   │   │   │   ├── StudentNotFoundException.java
-│   │   │   │   │   ├── DuplicateCuiException.java
-│   │   │   │   │   └── InvalidStudentStateException.java
+│   │   │   │   │   └── DuplicateCuiException.java
 │   │   │   │   │
-│   │   │   │   ├── service/                     → Servicios de dominio (lógica pura)
-│   │   │   │   │   └── StudentDomainService.java
+│   │   │   │   ├── ports/                       → PUERTOS (interfaces del dominio)
+│   │   │   │   │   ├── in/                      → Puertos de ENTRADA (casos de uso)
+│   │   │   │   │   │   ├── ICreateStudentUseCase.java
+│   │   │   │   │   │   ├── IUpdateStudentUseCase.java
+│   │   │   │   │   │   ├── IGetStudentUseCase.java
+│   │   │   │   │   │   ├── IDeleteStudentUseCase.java
+│   │   │   │   │   │   └── IRestoreStudentUseCase.java
+│   │   │   │   │   │
+│   │   │   │   │   └── out/                     → Puertos de SALIDA
+│   │   │   │   │       ├── IStudentRepository.java
+│   │   │   │   │       ├── IStudentEventPublisher.java
+│   │   │   │   │       └── IInstitutionClient.java
 │   │   │   │   │
-│   │   │   │   └── port/                        → PUERTOS (interfaces del dominio)
-│   │   │   │       ├── in/                      → Puertos de ENTRADA (casos de uso)
-│   │   │   │       │   ├── CreateStudentUseCase.java
-│   │   │   │       │   ├── UpdateStudentUseCase.java
-│   │   │   │       │   ├── FindStudentUseCase.java
-│   │   │   │       │   └── DeactivateStudentUseCase.java
-│   │   │   │       │
-│   │   │   │       └── out/                     → Puertos de SALIDA (infraestructura)
-│   │   │   │           ├── StudentRepositoryPort.java
-│   │   │   │           ├── InstitutionClientPort.java
-│   │   │   │           ├── EventPublisherPort.java
-│   │   │   │           └── NotificationPort.java
+│   │   │   │   └── services/                    → Servicios de dominio (lógica pura, opcional)
+│   │   │   │       └── StudentDomainService.java
 │   │   │   │
 │   │   │   ├── application/                     📋 CAPA DE APLICACIÓN
-│   │   │   │   ├── usecase/                     → Implementa puertos de entrada
+│   │   │   │   ├── usecases/                    → Implementa puertos de entrada (1 clase = 1 caso)
 │   │   │   │   │   ├── CreateStudentUseCaseImpl.java
 │   │   │   │   │   ├── UpdateStudentUseCaseImpl.java
-│   │   │   │   │   ├── FindStudentUseCaseImpl.java
-│   │   │   │   │   └── DeactivateStudentUseCaseImpl.java
+│   │   │   │   │   ├── GetStudentUseCaseImpl.java
+│   │   │   │   │   ├── DeleteStudentUseCaseImpl.java
+│   │   │   │   │   └── RestoreStudentUseCaseImpl.java
 │   │   │   │   │
-│   │   │   │   ├── mapper/                      → Mappers Application ↔ Domain
-│   │   │   │   │   └── StudentApplicationMapper.java
+│   │   │   │   ├── dto/                         → DTOs de entrada/salida
+│   │   │   │   │   ├── common/                  → Wrappers de respuesta API
+│   │   │   │   │   │   ├── ApiResponse.java
+│   │   │   │   │   │   └── ErrorResponse.java
+│   │   │   │   │   ├── request/
+│   │   │   │   │   │   ├── CreateStudentRequest.java
+│   │   │   │   │   │   └── UpdateStudentRequest.java
+│   │   │   │   │   └── response/
+│   │   │   │   │       └── StudentResponse.java
 │   │   │   │   │
-│   │   │   │   └── dto/                         → DTOs de aplicación (comando/consulta)
-│   │   │   │       ├── command/
-│   │   │   │       │   ├── CreateStudentCommand.java
-│   │   │   │       │   └── UpdateStudentCommand.java
-│   │   │   │       └── query/
-│   │   │   │           └── StudentResponse.java
+│   │   │   │   ├── events/                      → Eventos de integración (RabbitMQ)
+│   │   │   │   │   ├── StudentCreatedEvent.java
+│   │   │   │   │   ├── StudentUpdatedEvent.java
+│   │   │   │   │   ├── StudentDeletedEvent.java
+│   │   │   │   │   └── StudentRestoredEvent.java
+│   │   │   │   │
+│   │   │   │   └── mappers/                     → Mappers DTO ↔ Domain
+│   │   │   │       └── StudentMapper.java
 │   │   │   │
 │   │   │   └── infrastructure/                  🔌 CAPA DE INFRAESTRUCTURA
-│   │   │       ├── adapter/
+│   │   │       ├── adapters/
 │   │   │       │   ├── in/                      → Adaptadores de ENTRADA
 │   │   │       │   │   └── rest/
-│   │   │       │   │       ├── StudentController.java
-│   │   │       │   │       ├── dto/
-│   │   │       │   │       │   ├── CreateStudentRequestDto.java
-│   │   │       │   │       │   ├── UpdateStudentRequestDto.java
-│   │   │       │   │       │   └── StudentResponseDto.java
-│   │   │       │   │       └── mapper/
-│   │   │       │   │           └── StudentRestMapper.java
+│   │   │       │   │       ├── StudentRest.java             → Controller REST
+│   │   │       │   │       └── GlobalExceptionHandler.java
 │   │   │       │   │
 │   │   │       │   └── out/                     → Adaptadores de SALIDA
 │   │   │       │       ├── persistence/
-│   │   │       │       │   ├── StudentPersistenceAdapter.java  → Implementa StudentRepositoryPort
-│   │   │       │       │   ├── entity/
-│   │   │       │       │   │   └── StudentEntity.java          → CON anotaciones @Table/@Document
-│   │   │       │       │   ├── mapper/
-│   │   │       │       │   │   └── StudentPersistenceMapper.java
-│   │   │       │       │   └── repository/
-│   │   │       │       │       └── StudentR2dbcRepository.java → Extiende R2dbcRepository
-│   │   │       │       │
-│   │   │       │       ├── client/              → Clientes HTTP a otros microservicios
-│   │   │       │       │   ├── InstitutionClientAdapter.java   → Implementa InstitutionClientPort
-│   │   │       │       │   └── dto/
-│   │   │       │       │       └── InstitutionClientDto.java
-│   │   │       │       │
-│   │   │       │       └── messaging/           → Mensajería (RabbitMQ/Kafka)
-│   │   │       │           ├── RabbitEventPublisher.java        → Implementa EventPublisherPort
-│   │   │       │           └── StudentEventListener.java
+│   │   │       │       │   └── StudentRepositoryImpl.java   → Implementa IStudentRepository
+│   │   │       │       ├── external/            → Clientes HTTP a otros microservicios
+│   │   │       │       │   └── InstitutionClientImpl.java   → Implementa IInstitutionClient
+│   │   │       │       └── messaging/           → Mensajería (RabbitMQ)
+│   │   │       │           └── StudentEventPublisherImpl.java → Implementa IStudentEventPublisher
 │   │   │       │
-│   │   │       └── config/                      → Configuración de Spring
-│   │   │           ├── BeanConfig.java
-│   │   │           ├── WebClientConfig.java
-│   │   │           ├── R2dbcConfig.java
-│   │   │           ├── RabbitConfig.java
-│   │   │           ├── CorsConfig.java
-│   │   │           ├── OpenApiConfig.java
-│   │   │           └── SecurityConfig.java
+│   │   │       ├── config/                      → Configuración de Spring
+│   │   │       │   ├── R2dbcConfig.java
+│   │   │       │   ├── RabbitMQConfig.java
+│   │   │       │   ├── SecurityConfig.java
+│   │   │       │   └── WebClientConfig.java
+│   │   │       │
+│   │   │       ├── persistence/                 → Entidades y repos de BD (separados del adapter)
+│   │   │       │   ├── entities/
+│   │   │       │   │   └── StudentEntity.java   → @Table("students")
+│   │   │       │   └── repositories/
+│   │   │       │       └── StudentR2dbcRepository.java → extends ReactiveCrudRepository
+│   │   │       │
+│   │   │       └── security/                    → Seguridad (opcional)
+│   │   │           └── SecurityContextAdapter.java
 │   │   │
 │   │   └── resources/
 │   │       ├── application.yml
@@ -220,13 +214,12 @@ vg-ms-{nombre}/
 │   └── test/
 │       └── java/pe/edu/vallegrande/sigei/{modulo}/
 │           ├── domain/
-│           │   ├── model/StudentTest.java
-│           │   └── service/StudentDomainServiceTest.java
+│           │   └── models/StudentTest.java
 │           ├── application/
-│           │   └── usecase/CreateStudentUseCaseTest.java
+│           │   └── usecases/CreateStudentUseCaseImplTest.java
 │           └── infrastructure/
-│               ├── adapter/in/rest/StudentControllerTest.java
-│               └── adapter/out/persistence/StudentPersistenceAdapterTest.java
+│               ├── adapters/in/rest/StudentRestTest.java
+│               └── adapters/out/persistence/StudentRepositoryImplTest.java
 ```
 
 ---
